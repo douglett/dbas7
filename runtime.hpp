@@ -68,6 +68,15 @@ struct Runtime {
 	}
 
 
+	// main run function
+	void run() {
+		init();
+		// run blocks in order
+		for (auto& bl : prog.blocks)
+			block(bl);
+	}
+
+
 	// init
 	void init() {
 		for (auto& t : prog.types)    init_type(t);
@@ -77,38 +86,43 @@ struct Runtime {
 		for (int i = 0; i < t.members.size(); i++)
 			consts["USRTYPE_" + t.name + "_" + t.members[i].name] = i;
 	}
-	void init_dim(const Prog::Dim& t) {
-		dim(t.type, t.name);
+	void init_dim(const Prog::Dim& d) {
+		globals[d.name] = make(d.type);
 	}
 
 
-	// runtime actions
-	void dim(const string& type, const string& name) {
-		if (globals.count(name))   throw runtime_error("already defined: " + name);
-		globals[name] = make(type);
+	// run statements
+	void block(const Prog::Block& bl) {
+		for (auto& st : bl.statements)
+			if (st.type == "let")  let(st.loc);
+	}
+	void let(int32_t l) {
+		return let( prog.lets.at(l) );
 	}
 	void let(const Prog::Let& l) {
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
 		vp = ex;
-		// printf("let %d\n", ex);
+
 	} 
 
 
 	// variable path parsing
 	int32_t& varpath(int32_t vp) {
-		vector<vector<string>> path;
-		for (auto& instr : prog.varpaths.at(vp).instr)
-			path.push_back( Strings::split(instr) );
-		return varpath(path);
+		return varpath( prog.varpaths.at(vp).instr );
 	}
-	int32_t& varpath(const vector<vector<string>>& path) {
+	int32_t& varpath(const Prog::VarPath& vp) {
+		return varpath( vp.instr );
+	}
+	int32_t& varpath(const vector<string>& instr) {
 		int32_t* ptr = NULL;
-		for (auto& cmd : path)
+		for (auto& in : instr) {
+			auto cmd = Strings::split(in);
 			if      (cmd.at(0) == "get")         ptr = &get(cmd.at(1));
 			else if (cmd.at(0) == "get_global")  ptr = &get(cmd.at(1), true);
 			else if (ptr == NULL)                goto err;
 			else if (cmd.at(0) == "memget")      ptr = &memget(*ptr, getnum(cmd.at(1)));
+		}
 		if (ptr == NULL)  goto err;
 		return *ptr;
 		err:  throw out_of_range("memget ptr is null");
@@ -123,8 +137,7 @@ struct Runtime {
 		int32_t res = 0;
 		for (auto& in : ex.instr) {
 			auto cmd = Strings::split(in);
-			if    (cmd.at(0) == "i")  res = getnum(cmd.at(1));
-			else  throw runtime_error("unknown expression command: " + cmd.at(0));
+			if (cmd.at(0) == "i")  res = getnum(cmd.at(1));
 		}
 		return res;
 	}

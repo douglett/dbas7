@@ -11,12 +11,11 @@ using namespace std;
 
 
 struct Parser : InputFile {
-	// vector<Prog::Type>        types;
-	// vector<Prog::Dim>         globals;
-	// vector<Prog::Let>         lets;
-	// vector<Prog::VarPath>     varpaths;
-	// vector<Prog::Expr>        exprs;
+	// parser results
 	Prog prog;
+	// parser state
+	// --
+
 
 	void parse() {
 		while (!eof())
@@ -103,7 +102,7 @@ struct Parser : InputFile {
 				break;
 		return vp;
 	}
-
+	// p_varpath helpers
 	string getglobaltype(const string& name) const {
 		for (auto& g : prog.globals)
 			if (g.name == name)  return g.type;
@@ -127,7 +126,8 @@ struct Parser : InputFile {
 	}
 
 
-	// show results
+
+	// --- show results ---
 	void show() const {
 		printf("<types>\n");
 		for (auto& t : prog.types)  show(t);
