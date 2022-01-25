@@ -54,10 +54,11 @@ void test3() {
 	p.loadstring(
 		"type tt\n"
 		"	dim a\n"
-		"	dim b\n"
+		"	dim bbb\n"
 		"end type\n"
 	);
 	p.p_type();
+	p.show();
 }
 
 

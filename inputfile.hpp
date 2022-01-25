@@ -13,20 +13,25 @@ struct InputFile {
 	// typedef  InputPattern::Results  Results;
 	vector<string> lines, tokens;
 	string lasttok;
+	vector<string> lastrule;
 	int lno = 0, pos = 0;
 
-
-	// --- Helpers ---
-	// info
+	// state info
 	int eol(int off=0)    const { return pos + off >= tokens.size(); }
 	int eof()             const { return lno >= lines.size(); }
 	string peekline()     const { return lno < lines.size() ? lines[lno] : "<EOF>"; }
 	string currenttoken() const { return eol() ? "<EOL>" : tokens.at(pos); }
+
 	// mutators
 	int nextline() { return lno++, tokenizeline(); }
 
+	// errors
+	runtime_error error(const string& err, const string& val="") {
+		return runtime_error(
+			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lno + 1) );
+	}
 
-	// --- Load ---
+	// loading
 	int load(const string& fname) {
 		// reset
 		lines = tokens = {};
@@ -42,7 +47,6 @@ struct InputFile {
 		tokenizeline();
 		return 0;
 	}
-
 	int loadstring(const string& program) {
 		// reset
 		lines = tokens = {};
@@ -57,15 +61,7 @@ struct InputFile {
 		return 0;
 	}
 
-
-	// --- Do work ---
-	runtime_error error(const string& err, const string& val="") {
-		string s = err
-			+ (val.length() ? " [" + val + "]" : "")
-			+ " . line " + to_string(lno + 1);
-		return runtime_error(s);
-	}
-
+	// main parsing function
 	int tokenizeline() {
 		// reset & check
 		tokens = {};
@@ -105,31 +101,30 @@ struct InputFile {
 		return 1;
 	}
 
-
-	// --- Token access ---
-	int peek(const string& tok, int off=0) {
+	// token access :: (simplified version of dbas6)
+	int peekt(const string& tok, int off=0) {
 		if (!eol(off) && tokens[pos + off] == tok)
 			return lasttok = tok, 1;
 		return 0;
 	}
-	int expect(const string& tok) {
-		return peek(tok) ? ++pos, 1 : 0;
+	int expectt(const string& tok) {
+		return peekt(tok) ? ++pos, 1 : 0;
 	}
-	int require(const string& tok) {
-		if (!expect(tok))  throw error("expected token", tok);
+	int requiret(const string& tok) {
+		if (!expectt(tok))  throw error("expected token", tok);
 		return 1;
 	}
 	int peekp(const string& pat, int off=0) {
 		string tok = eof() ? "<EOF>" : eol(off) ? "<EOL>" : tokens[pos + off];
 		int res = 0;
-		printf("here  %s \n", tok.c_str() );
+		// printf("rulecheck  %s \n", tok.c_str() );
 		if      (pat == "eof")         res = eof();
 		else if (pat == "eol")         res = eol(off);
-		else if (pat == "endl")        res = eof() || eol(off) || is_comment(tok);
-		else if (pat == "integer")     res = is_integer(tok);
-		else if (pat == "identifier")  res = is_identifier(tok);
-		else if (pat == "literal")     res = is_literal(tok);
-		else  throw error("unknown pattern", pat);
+		else if (pat == "endl")        res = eof() || eol(off) || Tokens::is_comment(tok);
+		else if (pat == "integer")     res = Tokens::is_integer(tok);
+		else if (pat == "identifier")  res = Tokens::is_identifier(tok);
+		else if (pat == "literal")     res = Tokens::is_literal(tok);
+		else  throw runtime_error("unknown pattern: " + pat);
 		return lasttok = tok, res;
 	}
 	int expectp(const string& pat) {
@@ -140,25 +135,23 @@ struct InputFile {
 		return 1;
 	}
 
-
-	// --- Useful functions ---
-	int is_identifier(const string& s) {
-		if (s.length() == 0)  return 0;
-		for (int i = 0; i < s.length(); i++)
-			if      (i == 0 && !isalpha(s[i]) && s[i] != '_')  return 0;
-			else if (i  > 0 && !isalnum(s[i]) && s[i] != '_')  return 0;
+	// full ruleset matching :: (much reduced from dbas 4 -> 6)
+	int peek(const string& ruleset) {
+		int off = 0;
+		vector<string> vs;
+		for (const auto& rule : Strings::split(ruleset))
+			if      (rule.at(0) == '@' && peekp(rule.substr(1), off))  off++, vs.push_back(lasttok);
+			else if (rule.at(0) != '@' && peekt(rule, off))  off++;
+			else    return 0;
+		lastrule = vs;
+		return off;
+	}
+	int expect(const string& ruleset) {
+		int matchc = peek(ruleset);
+		return matchc ? pos += matchc, matchc : 0;
+	}
+	int require(const string& ruleset) {
+		if (!expect(ruleset))  throw error("syntax error near", currenttoken());
 		return 1;
-	}
-	int is_integer(const string& s) {
-		if (s.length() == 0)  return 0;
-		for (int i = 0; i < s.length(); i++)
-			if (!isdigit(s[i]))  return 0;
-		return 1;
-	}
-	int is_literal(const string& s) {
-		return s.size() >= 2 && s[0] == '"' && s.back() == '"';
-	}
-	int is_comment(const string& s) {
-		return s.size() >= 1 && s[0] == '#';
 	}
 };
