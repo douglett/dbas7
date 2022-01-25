@@ -15,6 +15,8 @@ void test4() {
 	Runtime r;
 	r.prog = p.prog;
 	r.run();
+	printf("-----\n");
+	
 	r.show();
 	int32_t v = r.varpath({
 		"get_global a",

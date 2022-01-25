@@ -8,15 +8,17 @@ struct Prog {
 	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
-	struct Statement  { string type; int32_t loc; };
+	struct Statement  { string type; int loc; };
 	struct Block      { vector<Statement> statements; };
-	struct Let        { int32_t varpath, expr; };
+	struct Let        { int varpath, expr; };
+	struct Print      { vector<pair<string, string>> instr; };
 	struct VarPath    { string type; vector<string> instr; };
 	struct Expr       { string type; vector<string> instr; };
 
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
 	vector<Prog::Let>         lets;
+	vector<Prog::Print>       prints;
 	vector<Prog::VarPath>     varpaths;
 	vector<Prog::Expr>        exprs;
 	vector<Prog::Block>       blocks;
@@ -76,7 +78,7 @@ namespace Strings {
 	// 		if (!isspace(s[j]))  { j++; break; }
 	// 	return s.substr(i, j-i);
 	// }
-	// string deliteral(const string& s) {
-	// 	return is_strliteral(s) ? s.substr(1, s.length()-2) : s;
-	// }
+	string deliteral(const string& s) {
+		return Tokens::is_literal(s) ? s.substr(1, s.length()-2) : s;
+	}
 };

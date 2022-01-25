@@ -94,26 +94,28 @@ struct Runtime {
 	// run statements
 	void block(const Prog::Block& bl) {
 		for (auto& st : bl.statements)
-			if (st.type == "let")  let(st.loc);
+			if      (st.type == "let")    let(st.loc);
+			else if (st.type == "print")  print(st.loc);
 	}
-	void let(int32_t l) {
-		return let( prog.lets.at(l) );
-	}
+	void let(int l) { return let(prog.lets.at(l)); }
 	void let(const Prog::Let& l) {
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
 		vp = ex;
-
-	} 
+	}
+	void print(int pr) { return print(prog.prints.at(pr)); }
+	void print(const Prog::Print& pr) {
+		for (auto& in : pr.instr)
+			if      (in.first == "literal")  printf("%s ", Strings::deliteral(in.second).c_str() );
+			else if (in.first == "varpath")  printf("%d ", varpath(getnum(in.second)) );
+			else if (in.first == "expr")     printf("%d ", expr(getnum(in.second)) );
+		printf("\n");
+	}
 
 
 	// variable path parsing
-	int32_t& varpath(int32_t vp) {
-		return varpath( prog.varpaths.at(vp).instr );
-	}
-	int32_t& varpath(const Prog::VarPath& vp) {
-		return varpath( vp.instr );
-	}
+	int32_t& varpath(int vp) { return varpath(prog.varpaths.at(vp).instr); }
+	int32_t& varpath(const Prog::VarPath& vp) { return varpath(vp.instr); }
 	int32_t& varpath(const vector<string>& instr) {
 		int32_t* ptr = NULL;
 		for (auto& in : instr) {
@@ -130,9 +132,7 @@ struct Runtime {
 
 
 	// expression parsing
-	int32_t expr(int32_t ex) {
-		return expr( prog.exprs.at(ex) );
-	}
+	int32_t expr(int ex) { return expr(prog.exprs.at(ex)); }
 	int32_t expr(const Prog::Expr& ex) {
 		int32_t res = 0;
 		for (auto& in : ex.instr) {

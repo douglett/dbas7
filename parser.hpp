@@ -56,6 +56,7 @@ struct Parser : InputFile {
 			if      (expect("@endl"))  { nextline();  continue; }
 			else if (peek("end"))      break;
 			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let", p_let() });
+			else if (peek("print"))    prog.blocks.at(bl).statements.push_back({ "print", p_print() });
 			else    throw error("unexpected block statement", currenttoken());
 	}
 
@@ -72,11 +73,28 @@ struct Parser : InputFile {
 
 	int p_let() {
 		require("let");
-		int32_t vp = p_varpath();
+		prog.lets.push_back({ -1, -1 });
+		int let = prog.lets.size() - 1;
+		prog.lets.at(let).varpath = p_varpath();
 		require("=");
-		int32_t ex = p_expr();
-		prog.lets.push_back({ vp, ex });
-		return prog.lets.size() - 1;
+		prog.lets.at(let).expr = p_expr();
+		require("@endl"), nextline();
+		return let;
+	}
+
+	int p_print() {
+		require("print");
+		prog.prints.push_back({});
+		int pr = prog.prints.size() - 1, loc = 0;
+
+		while (!eol())
+			if      (expect("@literal"))   prog.prints.at(pr).instr.push_back({ "literal", lastrule.at(0) });
+			else if (peek("@identifier"))  loc = p_varpath(),  prog.prints.at(pr).instr.push_back({ "varpath", to_string(loc) });
+			else if (peek("@integer"))     loc = p_expr(),  prog.prints.at(pr).instr.push_back({ "expr", to_string(loc) });
+			else    throw error("unexpected in print", currenttoken());
+
+		require("@endl"), nextline();
+		return pr;
 	}
 
 	int p_varpath() {
@@ -149,15 +167,23 @@ struct Parser : InputFile {
 		printf("}\n");
 	}
 	void show(const Prog::Statement& st) const {
-		if   (st.type == "let")  show( prog.lets.at(st.loc) );
-		else  printf("  ??\n");
+		if      (st.type == "let")    show( prog.lets.at(st.loc) );
+		else if (st.type == "print")  show( prog.prints.at(st.loc) );
+		else    printf("  ??\n");
 	}
 	void show(const Prog::Let& l) const {
 		printf("  let\n");
-		printf("   -varpath\n");
 		show( prog.varpaths.at(l.varpath) );
-		printf("   -expr\n");
+		printf("    ---\n");
 		show( prog.exprs.at(l.expr) );
+	}
+	void show(const Prog::Print& pr) const {
+		printf("  print\n");
+		for (auto& in : pr.instr)
+			if      (in.first == "literal")  printf("    %s\n", in.second.c_str() );
+			else if (in.first == "varpath")  printf("    ---\n"),  show( prog.varpaths.at(stoi(in.second)) );
+			else if (in.first == "expr")     printf("    ---\n"),  show( prog.exprs.at(stoi(in.second)) );
+			else    printf("    ??\n");
 	}
 	void show(const Prog::VarPath& vp) const {
 		for (auto& in : vp.instr)
