@@ -79,10 +79,25 @@ void test3() {
 }
 
 
+void test4() {
+	Parser p;
+	p.load("scripts/scratch.bas");
+	p.parse();
+	p.show();
+	printf("-----\n");
+	
+	// Runtime r;
+	// r.prog = p.prog;
+	// r.run();
+	// r.show();
+}
+
+
 int main() {
 	printf("hello world\n");
 
 	// test1();
 	// test2();
-	test3();
+	// test3();
+	test4();
 }

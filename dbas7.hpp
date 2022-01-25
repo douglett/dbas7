@@ -8,7 +8,9 @@ struct Prog {
 	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
-	struct Let        { int varpath, expr; };
+	struct Statement  { string type; int32_t loc; };
+	struct Block      { vector<Statement> statements; };
+	struct Let        { int32_t varpath, expr; };
 	struct VarPath    { string type; vector<string> instr; };
 	struct Expr       { string type; vector<string> instr; };
 
@@ -17,6 +19,7 @@ struct Prog {
 	vector<Prog::Let>         lets;
 	vector<Prog::VarPath>     varpaths;
 	vector<Prog::Expr>        exprs;
+	vector<Prog::Block>       blocks;
 };
 
 

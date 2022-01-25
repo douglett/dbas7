@@ -96,7 +96,7 @@ struct Runtime {
 
 
 	// variable path parsing
-	int32_t& varpath(int vp) {
+	int32_t& varpath(int32_t vp) {
 		vector<vector<string>> path;
 		for (auto& instr : prog.varpaths.at(vp).instr)
 			path.push_back( Strings::split(instr) );
@@ -116,11 +116,11 @@ struct Runtime {
 
 
 	// expression parsing
-	int32_t expr(int ex) {
+	int32_t expr(int32_t ex) {
 		return expr( prog.exprs.at(ex) );
 	}
 	int32_t expr(const Prog::Expr& ex) {
-		int res = 0;
+		int32_t res = 0;
 		for (auto& in : ex.instr) {
 			auto cmd = Strings::split(in);
 			if    (cmd.at(0) == "i")  res = getnum(cmd.at(1));

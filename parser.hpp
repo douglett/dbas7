@@ -18,6 +18,15 @@ struct Parser : InputFile {
 	// vector<Prog::Expr>        exprs;
 	Prog prog;
 
+	void parse() {
+		while (!eof())
+			if      (expect("@endl"))  { nextline();  continue; }
+			else if (peek("type"))     p_type();
+			else if (peek("dim"))      p_dim();
+			else if (peek("block"))    p_block0();
+			else    throw error("unexpected command", currenttoken());
+	}
+
 	void p_type() {
 		require("type @identifier @endl");
 		string type, name, tname = lastrule.at(0);
@@ -36,6 +45,21 @@ struct Parser : InputFile {
 		require("end type @endl"), nextline();
 	}
 
+	void p_block0() {
+		require("block @endl");
+		p_block();
+		require("end block @endl"), nextline();
+	}
+	void p_block() {
+		prog.blocks.push_back({});
+		int bl = prog.blocks.size() - 1;
+		while (!eof())
+			if      (expect("@endl"))  { nextline();  continue; }
+			else if (peek("end"))      break;
+			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let", p_let() });
+			else    throw error("unexpected block statement", currenttoken());
+	}
+
 	void p_dim() {
 		string type, name;
 		if      (expect ("dim @identifier @identifier"))      type = lastrule.at(0), name = lastrule.at(1);
@@ -47,17 +71,19 @@ struct Parser : InputFile {
 		require("@endl"), nextline();
 	}
 
-	void p_let() {
+	int p_let() {
 		require("let");
-		int vp = p_varpath();
+		int32_t vp = p_varpath();
 		require("=");
-		int ex = p_expr();
+		int32_t ex = p_expr();
 		prog.lets.push_back({ vp, ex });
+		return prog.lets.size() - 1;
 	}
 
 	int p_varpath() {
 		prog.varpaths.push_back({ "<NULL>" });
-		int ex = -1, vp = prog.varpaths.size() - 1;
+		// int32_t ex = -1, 
+		int32_t vp = prog.varpaths.size() - 1;
 		require("@identifier");
 		string global = lastrule.at(0), type = getglobaltype(global), prop;
 		prog.varpaths.at(vp).instr.push_back("get_global " + lastrule.at(0));
@@ -100,14 +126,15 @@ struct Parser : InputFile {
 		return ex;
 	}
 
+
 	// show results
 	void show() const {
 		printf("<types>\n");
 		for (auto& t : prog.types)  show(t);
 		printf("<globals>\n");
 		for (auto& g : prog.globals)  show(g);
-		printf("<lets>\n");
-		for (auto& l : prog.lets)  show(l);
+		printf("<blocks>\n");
+		for (auto& b : prog.blocks)  show(b);
 	}
 	void show(const Prog::Type& t) const {
 		printf("type %s\n", t.name.c_str() );
@@ -116,18 +143,28 @@ struct Parser : InputFile {
 	void show(const Prog::Dim& d) const {
 		printf("   %s  %s\n", d.type.c_str(), d.name.c_str());
 	}
+	void show(const Prog::Block& b) const {
+		printf("block {\n");
+		for (auto& st : b.statements)  show(st);
+		printf("}\n");
+	}
+	void show(const Prog::Statement& st) const {
+		if   (st.type == "let")  show( prog.lets.at(st.loc) );
+		else  printf("  ??\n");
+	}
 	void show(const Prog::Let& l) const {
-		printf("let varpath\n");
+		printf("  let\n");
+		printf("   -varpath\n");
 		show( prog.varpaths.at(l.varpath) );
-		printf("let expr\n");
+		printf("   -expr\n");
 		show( prog.exprs.at(l.expr) );
 	}
 	void show(const Prog::VarPath& vp) const {
 		for (auto& in : vp.instr)
-			printf("   %s\n", in.c_str() );
+			printf("    %s\n", in.c_str() );
 	}
 	void show(const Prog::Expr& ex) const {
 		for (auto& in : ex.instr)
-			printf("   %s\n", in.c_str() );
+			printf("    %s\n", in.c_str() );
 	}
 };
