@@ -1,6 +1,6 @@
 type tt
 	dim a
-	dim bbb
+	dim string bbb
 end type
 
 dim tt a

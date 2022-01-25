@@ -14,8 +14,10 @@ struct Parser : InputFile {
 	// parser results
 	Prog prog;
 	// parser state
-	// --
+	// string ctype;
 
+
+	// --- Main parsing functions ---
 
 	void parse() {
 		while (!eof())
@@ -28,8 +30,9 @@ struct Parser : InputFile {
 
 	void p_type() {
 		require("type @identifier @endl");
-		string type, name, tname = lastrule.at(0);
-		prog.types.push_back({ tname });
+		string type, name, ctype = lastrule.at(0);
+		// TODO: check nokeyword(ctype), notype(name), noglobal(ctype), notype(ctype)
+		prog.types.push_back({ ctype });
 		// type members
 		while (!eof()) {
 			if      (expect("@endl"))                                  { nextline();  continue; }
@@ -37,7 +40,7 @@ struct Parser : InputFile {
 			else if (expect("dim @identifier [ ] @identifier @endl"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
 			else if (expect("dim @identifier @endl"))                  type = "int", name = lastrule.at(0);
 			else    break;
-			// typecheck(type), namecollision(name);
+			// TODO: check nokeyword(name), notype(name), nomember(ctype, name), type(type)
 			prog.types.back().members.push_back({ name, type });  // save type member
 			nextline();
 		}
@@ -65,9 +68,9 @@ struct Parser : InputFile {
 		if      (expect ("dim @identifier @identifier"))      type = lastrule.at(0), name = lastrule.at(1);
 		else if (expect ("dim @identifier [ ] @identifier"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
 		else if (require("dim @identifier"))                  type = "int", name = lastrule.at(0);
-		// typecheck(type), namecollision(name);
+		// TODO: check nokeyword(name), notype(name), noglobal(name), type(type)
 		prog.globals.push_back({ name, type });
-		// assign here
+		// TODO: assign here
 		require("@endl"), nextline();
 	}
 
@@ -145,7 +148,8 @@ struct Parser : InputFile {
 
 
 
-	// --- show results ---
+	// --- Show results ---
+
 	void show() const {
 		printf("<types>\n");
 		for (auto& t : prog.types)  show(t);

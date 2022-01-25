@@ -51,6 +51,13 @@ namespace Tokens {
 	// string basetype(const string& s) {
 	// 	return is_arraytype(s) ? s.substr(0, s.length()-2) : s;
 	// }
+	int is_keyword(const string& s) {
+		static const vector<string> KEYWORDS = {
+			"int", "string",
+			"type", "dim", "redim", "function", "end", "if", "while", "break", "continue" };
+		for (auto& k : KEYWORDS)  if (k == s)  return 1;
+		return 0;
+	}
 };
 
 
