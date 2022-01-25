@@ -5,9 +5,18 @@ using namespace std;
 
 
 struct Prog {
-	struct Dim  { string name, type; /* int locality; */ };
+	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
+	struct Let        { int varpath, expr; };
+	struct VarPath    { string type; vector<string> instr; };
+	struct Expr       { string type; vector<string> instr; };
+
+	vector<Prog::Type>        types;
+	vector<Prog::Dim>         globals;
+	vector<Prog::Let>         lets;
+	vector<Prog::VarPath>     varpaths;
+	vector<Prog::Expr>        exprs;
 };
 
 
@@ -31,6 +40,12 @@ namespace Tokens {
 	int is_comment(const string& s) {
 		return s.size() >= 1 && s[0] == '#';
 	}
+	// int is_arraytype(const string& s) {
+	// 	return s.size() >= 3 && s[s.length()-2] == '[' && s[s.length()-1] == ']';
+	// }
+	// string basetype(const string& s) {
+	// 	return is_arraytype(s) ? s.substr(0, s.length()-2) : s;
+	// }
 };
 
 

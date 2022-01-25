@@ -51,14 +51,31 @@ void test2() {
 void test3() {
 	printf(":: test 3\n");
 	Parser p;
-	p.loadstring(
-		"type tt\n"
-		"	dim a\n"
-		"	dim bbb\n"
-		"end type\n"
-	);
+	// p.loadstring(
+	// 	"type tt\n"
+	// 	"	dim a\n"
+	// 	"	dim bbb\n"
+	// 	"end type\n"
+	// 	"dim a\n"
+	// );
+	p.load("scripts/scratch.bas");
 	p.p_type();
+	p.p_dim();
+	p.p_let();
 	p.show();
+	printf("-----\n");
+
+	Runtime r;
+	r.prog = p.prog;
+	r.init();
+	r.let(p.prog.lets.at(0));
+	r.show();
+
+	int32_t v = r.varpath({
+		{ "get_global", "a" },
+		{ "memget", "USRTYPE_tt_a" }
+	});
+	printf("result: %d\n", v);
 }
 
 

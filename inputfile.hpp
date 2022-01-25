@@ -26,7 +26,7 @@ struct InputFile {
 	int nextline() { return lno++, tokenizeline(); }
 
 	// errors
-	runtime_error error(const string& err, const string& val="") {
+	runtime_error error(const string& err, const string& val="") const {
 		return runtime_error(
 			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lno + 1) );
 	}
