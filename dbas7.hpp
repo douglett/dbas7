@@ -53,7 +53,7 @@ namespace Tokens {
 	// }
 	int is_keyword(const string& s) {
 		static const vector<string> KEYWORDS = {
-			"int", "string",
+			// "int", "string",
 			"type", "dim", "redim", "function", "end", "if", "while", "break", "continue" };
 		for (auto& k : KEYWORDS)  if (k == s)  return 1;
 		return 0;

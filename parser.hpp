@@ -17,6 +17,28 @@ struct Parser : InputFile {
 	// string ctype;
 
 
+	// --- State checking ---
+
+	int is_type(const string& type) const {
+		if (type == "int")  return 1;
+		for (int i = 0; i < prog.types.size(); i++)
+			if (prog.types[i].name == type)  return 1;
+		return 0;
+	}
+	int is_global(const string& name) const {
+		for (int i = 0; i < prog.globals.size(); i++)
+			if (prog.globals[i].name == name)  return 1;
+		return 0;
+	}
+	int is_member(const string& type, const string& member) const {
+		for (auto& t : prog.types)
+			for (auto& m : t.members)
+				if (t.name == type && m.name == member)  return 1;
+		return 0;
+	}
+
+
+
 	// --- Main parsing functions ---
 
 	void parse() {
@@ -31,7 +53,8 @@ struct Parser : InputFile {
 	void p_type() {
 		require("type @identifier @endl");
 		string type, name, ctype = lastrule.at(0);
-		// TODO: check nokeyword(ctype), notype(name), noglobal(ctype), notype(ctype)
+		if (Tokens::is_keyword(ctype) || is_type(ctype) || is_global(ctype))
+			throw error("type name collision", ctype);
 		prog.types.push_back({ ctype });
 		// type members
 		while (!eof()) {
@@ -40,7 +63,8 @@ struct Parser : InputFile {
 			else if (expect("dim @identifier [ ] @identifier @endl"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
 			else if (expect("dim @identifier @endl"))                  type = "int", name = lastrule.at(0);
 			else    break;
-			// TODO: check nokeyword(name), notype(name), nomember(ctype, name), type(type)
+			if (Tokens::is_keyword(name) || is_type(name) || Tokens::is_keyword(type) || !is_type(type) || is_member(ctype, name))
+				throw error("type member collision", type + ":" + name);
 			prog.types.back().members.push_back({ name, type });  // save type member
 			nextline();
 		}
@@ -68,7 +92,8 @@ struct Parser : InputFile {
 		if      (expect ("dim @identifier @identifier"))      type = lastrule.at(0), name = lastrule.at(1);
 		else if (expect ("dim @identifier [ ] @identifier"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
 		else if (require("dim @identifier"))                  type = "int", name = lastrule.at(0);
-		// TODO: check nokeyword(name), notype(name), noglobal(name), type(type)
+		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || Tokens::is_keyword(type) || !is_type(type))
+			throw error("dim collision", type + ":" + name);
 		prog.globals.push_back({ name, type });
 		// TODO: assign here
 		require("@endl"), nextline();
@@ -82,6 +107,7 @@ struct Parser : InputFile {
 		require("=");
 		prog.lets.at(let).expr = p_expr();
 		require("@endl"), nextline();
+
 		return let;
 	}
 
