@@ -10,13 +10,14 @@ struct Prog {
 	// struct Func { string name; map<string, Dim> args, locals; };
 	struct Statement  { string type; int loc; };
 	struct Block      { vector<Statement> statements; };
-	struct Let        { int varpath, expr; };
+	struct Let        { string type; int varpath, expr; };
 	struct Print      { vector<pair<string, string>> instr; };
 	struct VarPath    { string type; vector<string> instr; };
 	struct Expr       { string type; vector<string> instr; };
 
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
+	vector<string>            literals;  // temp
 	vector<Prog::Let>         lets;
 	vector<Prog::Print>       prints;
 	vector<Prog::VarPath>     varpaths;

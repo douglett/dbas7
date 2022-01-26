@@ -96,19 +96,31 @@ struct Runtime {
 		for (auto& st : bl.statements)
 			if      (st.type == "let")    let(st.loc);
 			else if (st.type == "print")  print(st.loc);
+			else    throw runtime_error("unknown statement: " + st.type);
 	}
 	void let(int l) { return let(prog.lets.at(l)); }
 	void let(const Prog::Let& l) {
-		int32_t  ex = expr(l.expr);
-		int32_t& vp = varpath(l.varpath);
-		vp = ex;
+		if (l.type == "int") {
+			int32_t  ex = expr(l.expr);
+			int32_t& vp = varpath(l.varpath);
+			vp = ex;
+		}
+		else if (l.type == "string") {
+			string& s = prog.literals.at(l.expr);
+			int32_t& vp = varpath(l.varpath);
+			heap.at(vp).mem = {};
+			heap.at(vp).mem.insert(heap.at(vp).mem.end(), s.begin(), s.end());
+		}
+		else    printf("WARNING!\n");
 	}
 	void print(int pr) { return print(prog.prints.at(pr)); }
 	void print(const Prog::Print& pr) {
 		for (auto& in : pr.instr)
 			if      (in.first == "literal")  printf("%s ", Strings::deliteral(in.second).c_str() );
-			else if (in.first == "varpath")  printf("%d ", varpath(getnum(in.second)) );
 			else if (in.first == "expr")     printf("%d ", expr(getnum(in.second)) );
+			else if (in.first == "varpath")  printf("%d ", varpath(getnum(in.second)) );
+			else if (in.first == "varpath_string")  printf("%s ", varpath_string(getnum(in.second)).c_str() );
+			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
 
@@ -124,10 +136,15 @@ struct Runtime {
 			else if (cmd.at(0) == "get_global")  ptr = &get(cmd.at(1), true);
 			else if (ptr == NULL)                goto err;
 			else if (cmd.at(0) == "memget")      ptr = &memget(*ptr, getnum(cmd.at(1)));
+			else    throw runtime_error("unknown varpath: " + cmd.at(0));
 		}
 		if (ptr == NULL)  goto err;
 		return *ptr;
 		err:  throw out_of_range("memget ptr is null");
+	}
+	string varpath_string(int vp) {
+		const auto& mem = heap.at( varpath(vp) ).mem;
+		return string(mem.begin(), mem.end());
 	}
 
 
@@ -138,6 +155,7 @@ struct Runtime {
 		for (auto& in : ex.instr) {
 			auto cmd = Strings::split(in);
 			if (cmd.at(0) == "i")  res = getnum(cmd.at(1));
+			else    throw runtime_error("unknown expr: " + cmd.at(0));
 		}
 		return res;
 	}

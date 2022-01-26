@@ -20,7 +20,7 @@ struct Parser : InputFile {
 	// --- State checking ---
 
 	int is_type(const string& type) const {
-		if (type == "int")  return 1;
+		if (type == "int" || type == "string")  return 1;
 		for (int i = 0; i < prog.types.size(); i++)
 			if (prog.types[i].name == type)  return 1;
 		return 0;
@@ -101,13 +101,27 @@ struct Parser : InputFile {
 
 	int p_let() {
 		require("let");
-		prog.lets.push_back({ -1, -1 });
+		prog.lets.push_back({ "<NULL>", -1, -1 });
 		int let = prog.lets.size() - 1;
-		prog.lets.at(let).varpath = p_varpath();
+		// dest varpath
+		int vp = prog.lets.at(let).varpath = p_varpath();
 		require("=");
-		prog.lets.at(let).expr = p_expr();
-		require("@endl"), nextline();
+		string dest_type = prog.lets.at(let).type = prog.varpaths.at(vp).type;
+		
+		// get src based on dest_type
+		if (dest_type == "int") {
+			prog.lets.at(let).expr = p_expr();
+		}
+		else if (dest_type == "string") {
+			require("@literal");
+			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) );
+			prog.lets.at(let).expr = prog.literals.size() - 1;
+		}
+		else
+			throw error("let unimplemented", dest_type);
 
+		// string src_type = prog.exprs.at(ex).type;
+		require("@endl"), nextline();
 		return let;
 	}
 
@@ -118,8 +132,16 @@ struct Parser : InputFile {
 
 		while (!eol())
 			if      (expect("@literal"))   prog.prints.at(pr).instr.push_back({ "literal", lastrule.at(0) });
-			else if (peek("@identifier"))  loc = p_varpath(),  prog.prints.at(pr).instr.push_back({ "varpath", to_string(loc) });
 			else if (peek("@integer"))     loc = p_expr(),  prog.prints.at(pr).instr.push_back({ "expr", to_string(loc) });
+			else if (peek("@identifier")) {
+				// TODO: this is messy
+				loc = p_varpath();
+				string cmd, vptype = prog.varpaths.at(loc).type;
+				if      (vptype == "int")     cmd = "varpath";
+				else if (vptype == "string")  cmd = "varpath_string";
+				else    throw error("invalid varpath type", vptype);
+				prog.prints.at(pr).instr.push_back({ cmd, to_string(loc) });
+			}
 			else    throw error("unexpected in print", currenttoken());
 
 		require("@endl"), nextline();
@@ -147,6 +169,7 @@ struct Parser : InputFile {
 			}
 			else
 				break;
+		prog.varpaths.at(vp).type = type;  // save type
 		return vp;
 	}
 	// p_varpath helpers
