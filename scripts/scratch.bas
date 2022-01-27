@@ -1,18 +1,11 @@
-type tt
-	dim a
-	dim bbb
-	dim string s
-end type
-
-dim tt a
+dim i
 dim string s
 
 block
-	let a.a = 101
-	let a.bbb = 5
-	let s = "hello-world"
-	print "printing test" a.a  a.bbb  s
+	let i = 100 + 2 + 4 + 6 - 3
+	let s = "fart"
+	print i s
 
-	let a.s = "farts"
-	print s  a.s
+	let s = "fart" + "fart"
+	print s
 end block

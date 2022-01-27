@@ -26,6 +26,8 @@ struct Runtime {
 	map<int32_t, MemPage>          heap;
 	StackFrame                     globals;
 	vector<StackFrame>             fstack;
+	vector<int32_t>                istack;  // expression stack
+	vector<string>                 sstack;  // string expression stack
 	int32_t memtop = 0;
 	// prog
 	Prog prog;
@@ -100,18 +102,16 @@ struct Runtime {
 	}
 	void let(int l) { return let(prog.lets.at(l)); }
 	void let(const Prog::Let& l) {
-		if (l.type == "int") {
-			int32_t  ex = expr(l.expr);
-			int32_t& vp = varpath(l.varpath);
-			vp = ex;
-		}
+		int32_t  ex = expr(l.expr);
+		int32_t& vp = varpath(l.varpath);
+		if      (l.type == "int")  vp = ex;
 		else if (l.type == "string") {
-			string& s = prog.literals.at(l.expr);
-			int32_t& vp = varpath(l.varpath);
-			heap.at(vp).mem = {};
-			heap.at(vp).mem.insert(heap.at(vp).mem.end(), s.begin(), s.end());
+			auto& mem = heap.at(vp).mem;
+			auto s = spop();
+			mem = {};
+			mem.insert(mem.end(), s.begin(), s.end());
 		}
-		else    printf("WARNING!\n");
+		else    throw runtime_error("assignment error");
 	}
 	void print(int pr) { return print(prog.prints.at(pr)); }
 	void print(const Prog::Print& pr) {
@@ -149,16 +149,35 @@ struct Runtime {
 
 
 	// expression parsing
-	int32_t expr(int ex) { return expr(prog.exprs.at(ex)); }
-	int32_t expr(const Prog::Expr& ex) {
-		int32_t res = 0;
-		for (auto& in : ex.instr) {
+	int32_t expr(int ex) { return expr(prog.exprs.at(ex).instr); }
+	int32_t expr(const Prog::Expr& ex) { return expr(ex.instr); }
+	int32_t expr(const vector<string>& instr) {
+		// istack = {}, sstack = {};
+		int32_t t = 0;
+		string s;
+		for (auto& in : instr) {
 			auto cmd = Strings::split(in);
-			if (cmd.at(0) == "i")  res = getnum(cmd.at(1));
+			// integers
+			if      (cmd.at(0) == "i")    t = getnum(cmd.at(1)),  ipush(t);
+			else if (cmd.at(0) == "add")  t = ipop(),  ipeek() += t;
+			else if (cmd.at(0) == "sub")  t = ipop(),  ipeek() -= t;
+			// strings
+			else if (cmd.at(0) == "lit")  t = getnum(cmd.at(1)),  spush(t);
+			else if (cmd.at(0) == "strcat")  s = spop(),  speek() += s;
+			// ??
 			else    throw runtime_error("unknown expr: " + cmd.at(0));
 		}
-		return res;
+		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
+		return istack.size() ? ipop() : 0;
 	}
+	// expression stack operations
+	int32_t& ipeek() { return istack.at(istack.size() - 1); }
+	int32_t  ipop () { auto t = istack.at(istack.size() - 1);  istack.pop_back();  return t; }
+	void     ipush(int32_t t) { istack.push_back(t); }
+	string&  speek() { return sstack.at(sstack.size() - 1); }
+	string   spop () { auto t = sstack.at(sstack.size() - 1);  sstack.pop_back();  return t; }
+	void     spush(const string& t) { sstack.push_back(t); }
+	void     spush(int loc) { sstack.push_back( prog.literals.at(loc) ); }
 
 
 	// show state

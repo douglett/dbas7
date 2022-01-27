@@ -6,7 +6,7 @@ using namespace std;
 
 void test4() {
 	Parser p;
-	p.load("scripts/scratch.bas");
+	p.load("scripts/test4.bas");
 	printf("-----\n");
 	p.parse();
 	p.show();
@@ -26,11 +26,32 @@ void test4() {
 }
 
 
+void test5() {
+	Parser p;
+	p.load("scripts/scratch.bas");
+	printf("-----\n");
+	p.parse();
+	p.show();
+	printf("-----\n");
+
+	Runtime r;
+	r.prog = p.prog;
+	r.run();
+	printf("-----\n");
+	
+	// r.expr({
+	// 	"varpath 1",
+	// 	"strpush",
+	// 	"varpath 2",
+	// 	"strpush",
+	// 	"strcat",
+	// });
+}
+
+
 int main() {
 	printf("hello world\n");
 
-	// test1();
-	// test2();
-	// test3();
-	test4();
+	// test4();
+	test5();
 }

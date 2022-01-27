@@ -17,6 +17,7 @@ struct Parser : InputFile {
 	// string ctype;
 
 
+
 	// --- State checking ---
 
 	int is_type(const string& type) const {
@@ -105,22 +106,10 @@ struct Parser : InputFile {
 		int let = prog.lets.size() - 1;
 		// dest varpath
 		int vp = prog.lets.at(let).varpath = p_varpath();
-		require("=");
 		string dest_type = prog.lets.at(let).type = prog.varpaths.at(vp).type;
-		
-		// get src based on dest_type
-		if (dest_type == "int") {
-			prog.lets.at(let).expr = p_expr();
-		}
-		else if (dest_type == "string") {
-			require("@literal");
-			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) );
-			prog.lets.at(let).expr = prog.literals.size() - 1;
-		}
-		else
-			throw error("let unimplemented", dest_type);
-
-		// string src_type = prog.exprs.at(ex).type;
+		require("=");
+		// src varpath
+		prog.lets.at(let).expr = p_expr( dest_type );
 		require("@endl"), nextline();
 		return let;
 	}
@@ -147,6 +136,7 @@ struct Parser : InputFile {
 		require("@endl"), nextline();
 		return pr;
 	}
+
 
 	int p_varpath() {
 		prog.varpaths.push_back({ "<NULL>" });
@@ -186,13 +176,48 @@ struct Parser : InputFile {
 		throw error("type or property not defined", type + "." + prop);
 	}
 
+
+	int p_expr(const string& type) {
+		int ex = p_expr();
+		const auto& t = prog.exprs.at(ex).type;
+		if (type != t)
+			throw error("unexpected type in expression (expected " + type + ")", t);
+		return ex;
+	}
 	int p_expr() {
 		prog.exprs.push_back({ "<NULL>" });
 		int ex = prog.exprs.size() - 1;
-		require("@integer");
-		prog.exprs.at(ex).instr.push_back("i " + lastrule.at(0));
-		prog.exprs.at(ex).type = "int";
+		p_expr_add( prog.exprs.at(ex) );
 		return ex;
+	}
+
+	void p_expr_add(Prog::Expr& ex) {
+		p_expr_atom(ex);
+		auto type = ex.type;
+		if (type != "int" && type != "string")  return;
+		while (peek("+") || peek("-")) {
+			string op = currenttoken();
+			expect("+") || expect("-");
+			p_expr_atom(ex);
+			if      (type != ex.type)                throw error("add type mismatch");
+			else if (type == "int"    && op == "+")  ex.instr.push_back("add");
+			else if (type == "int"    && op == "-")  ex.instr.push_back("sub");
+			else if (type == "string" && op == "+")  ex.instr.push_back("strcat");
+			else if (type == "string" && op == "-")  throw error("cannot subtract strings");
+			else    throw error("unexpected add expression");
+		}
+	}
+
+	void p_expr_atom(Prog::Expr& ex) {
+		if (expect("@integer"))
+			ex.instr.push_back("i " + lastrule.at(0)),
+			ex.type = "int";
+		else if (expect("@literal"))
+			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) ),
+			ex.instr.push_back("lit " + to_string( prog.literals.size() - 1 )),
+			ex.type = "string";
+		else
+			throw error("expected atom");
 	}
 
 
@@ -200,6 +225,9 @@ struct Parser : InputFile {
 	// --- Show results ---
 
 	void show() const {
+		printf("<literals>\n");
+		int i = 0;
+		for (auto& s : prog.literals)  printf("  %d  \"%s\"\n", i++, s.c_str() );
 		printf("<types>\n");
 		for (auto& t : prog.types)  show(t);
 		printf("<globals>\n");
