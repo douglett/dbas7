@@ -28,7 +28,8 @@ struct InputFile {
 	// errors
 	runtime_error error(const string& err, const string& val="") const {
 		return runtime_error(
-			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lno + 1) );
+			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lno + 1)
+			+ " near [" + currenttoken() + "]" );
 	}
 
 	// loading

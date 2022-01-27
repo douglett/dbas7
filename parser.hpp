@@ -209,6 +209,7 @@ struct Parser : InputFile {
 	}
 
 	void p_expr_atom(Prog::Expr& ex) {
+		int t = 0;
 		if (expect("@integer"))
 			ex.instr.push_back("i " + lastrule.at(0)),
 			ex.type = "int";
@@ -216,6 +217,14 @@ struct Parser : InputFile {
 			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) ),
 			ex.instr.push_back("lit " + to_string( prog.literals.size() - 1 )),
 			ex.type = "string";
+		// else if (peek("@identifier ("))
+		else if (peek("@identifier")) {
+			t = p_varpath();
+			ex.type = prog.varpaths.at(t).type;
+			if      (ex.type == "int")  ex.instr.push_back("varpath " + to_string(t));
+			else if (ex.type == "string")  ex.instr.push_back("varpath_str " + to_string(t));
+			else    throw error("bad type in expression", ex.type);
+		}
 		else
 			throw error("expected atom");
 	}

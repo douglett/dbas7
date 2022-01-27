@@ -159,10 +159,12 @@ struct Runtime {
 			auto cmd = Strings::split(in);
 			// integers
 			if      (cmd.at(0) == "i")    t = getnum(cmd.at(1)),  ipush(t);
+			else if (cmd.at(0) == "varpath")  t = getnum(cmd.at(1)),  ipush(varpath(t));
 			else if (cmd.at(0) == "add")  t = ipop(),  ipeek() += t;
 			else if (cmd.at(0) == "sub")  t = ipop(),  ipeek() -= t;
 			// strings
 			else if (cmd.at(0) == "lit")  t = getnum(cmd.at(1)),  spush(t);
+			else if (cmd.at(0) == "varpath_str")  t = getnum(cmd.at(1)),  spush(varpath_string(t));
 			else if (cmd.at(0) == "strcat")  s = spop(),  speek() += s;
 			// ??
 			else    throw runtime_error("unknown expr: " + cmd.at(0));
