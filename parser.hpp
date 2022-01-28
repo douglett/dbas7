@@ -277,62 +277,68 @@ struct Parser : InputFile {
 
 	void show() const {
 		printf("<literals>\n");
-		int i = 0;
-		for (auto& s : prog.literals)  printf("  %d  \"%s\"\n", i++, s.c_str() );
+		for (int i = 0; i < prog.literals.size(); i++)  show(prog.literals.at(i), i, 1);
 		printf("<types>\n");
-		for (auto& t : prog.types)  show(t);
+		for (auto& t : prog.types)  show(t, 1);
 		printf("<globals>\n");
-		for (auto& g : prog.globals)  show(g);
+		for (auto& g : prog.globals)  show(g, 1);
 		printf("<blocks>\n");
-		for (auto& b : prog.blocks)  show(b);
+		for (int i = 0; i < prog.blocks.size(); i++)  show(prog.blocks.at(i), i, 0);
 	}
-	void show(const Prog::Type& t) const {
-		printf("type %s\n", t.name.c_str() );
-		for (auto& d : t.members)  show(d);
+	void show(const string& s, int index, int id) const {
+		printf("%s%02d \"%s\"\n", ind(id), index, s.c_str() );
 	}
-	void show(const Prog::Dim& d) const {
-		printf("   %s  %s\n", d.type.c_str(), d.name.c_str());
+	void show(const Prog::Type& t, int id) const {
+		printf("%stype %s\n", ind(id), t.name.c_str() );
+		for (auto& d : t.members)  show(d, id+1);
 	}
-	void show(const Prog::Block& b) const {
-		printf("block {\n");
-		for (auto& st : b.statements)  show(st);
-		printf("}\n");
+	void show(const Prog::Dim& d, int id) const {
+		printf("%s%s  %s\n", ind(id), d.type.c_str(), d.name.c_str());
 	}
-	void show(const Prog::Statement& st) const {
-		if      (st.type == "let")    show( prog.lets.at(st.loc) );
-		else if (st.type == "print")  show( prog.prints.at(st.loc) );
-		else if (st.type == "call")   show( prog.calls.at(st.loc) );
-		else    printf("  ??\n");
+	void show(const Prog::Block& b, int index, int id) const {
+		printf("%sblock %d\n", ind(id), index );
+		for (auto& st : b.statements)  show(st, id+1);
 	}
-	void show(const Prog::Let& l) const {
-		printf("  let\n");
-		show( prog.varpaths.at(l.varpath) );
-		printf("    ---\n");
-		show( prog.exprs.at(l.expr) );
+	void show(const Prog::Statement& st, int id) const {
+		if      (st.type == "let")    show( prog.lets.at(st.loc), id );
+		else if (st.type == "print")  show( prog.prints.at(st.loc), id );
+		else if (st.type == "call")   show( prog.calls.at(st.loc), id );
+		else    printf("%s??\n", ind(id) );
 	}
-	void show(const Prog::Print& pr) const {
-		printf("  print\n");
+	void show(const Prog::Let& l, int id) const {
+		printf("%slet\n", ind(id) );
+		show( prog.varpaths.at(l.varpath), id+2 );
+		printf("%s-->\n", ind(id+1) );
+		show( prog.exprs.at(l.expr), id+2 );
+	}
+	void show(const Prog::Print& pr, int id) const {
+		printf("%sprint\n", ind(id) );
 		for (auto& in : pr.instr) {
-			if      (in.first == "literal")  printf("    %s\n", in.second.c_str() );
-			else if (in.first == "varpath")  show( prog.varpaths.at(stoi(in.second)) );
-			else if (in.first == "expr")     show( prog.exprs.at(stoi(in.second)) );
-			else    printf("    ?? (%s)\n", in.first.c_str() );
-			printf("    ---\n");
+			if      (in.first == "literal")  printf("%s%s\n", ind(id+1), in.second.c_str() );
+			else if (in.first == "varpath")  show( prog.varpaths.at(stoi(in.second)), id+1 );
+			else if (in.first == "expr")     show( prog.exprs.at(stoi(in.second)), id+1 );
+			else    printf("%s?? (%s)\n", ind(id+1), in.first.c_str() );
+			// printf("    ---\n");
 		}
 	}
-	void show(const Prog::VarPath& vp) const {
+	void show(const Prog::VarPath& vp, int id) const {
 		for (auto& in : vp.instr)
-			printf("    %s\n", in.c_str() );
+			printf("%s%s\n", ind(id), in.c_str() );
 	}
-	void show(const Prog::Expr& ex) const {
+	void show(const Prog::Expr& ex, int id) const {
 		for (auto& in : ex.instr)
-			printf("    %s\n", in.c_str() );
+			printf("%s%s\n", ind(id), in.c_str() );
 	}
-	void show(const Prog::Call& ca) const {
-		printf("  call\n");
-		for (auto& arg : ca.args)
-			printf("    %s\n", arg.type.c_str() ),
-			show( prog.exprs.at(arg.expr) ),
-			printf("    ---\n");
+	void show(const Prog::Call& ca, int id) const {
+		printf("%scall\n", ind(id) );
+		for (auto& arg : ca.args) {
+			printf("%s%s\n", ind(id), arg.type.c_str() );
+			show( prog.exprs.at(arg.expr), id+1 );
+			// printf("    ---\n");
+		}
+	}
+	const char* ind(int id) const {
+		static string s;
+		return s = string(id*3, ' '),  s.c_str();
 	}
 };

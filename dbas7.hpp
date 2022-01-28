@@ -12,6 +12,7 @@ struct Prog {
 	struct Block      { vector<Statement> statements; };
 	struct Let        { string type; int varpath, expr; };
 	struct Print      { vector<pair<string, string>> instr; };
+	// struct Instr      { string cmd; string sarg; int32_t iarg; };
 	struct VarPath    { string type; vector<string> instr; };
 	struct Expr       { string type; vector<string> instr; };
 	struct Argument   { string type; int expr; };
