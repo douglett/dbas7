@@ -111,7 +111,10 @@ struct Runtime {
 			mem = {};
 			mem.insert(mem.end(), s.begin(), s.end());
 		}
-		else    throw runtime_error("assignment error");
+		else if (vp != ex) {
+			throw runtime_error("TODO: assignment clone");
+		}
+		// else    throw runtime_error("let assignment error");
 	}
 	void print(int pr) { return print(prog.prints.at(pr)); }
 	void print(const Prog::Print& pr) {
@@ -160,6 +163,7 @@ struct Runtime {
 			// integers
 			if      (cmd.at(0) == "i")    t = getnum(cmd.at(1)),  ipush(t);
 			else if (cmd.at(0) == "varpath")  t = getnum(cmd.at(1)),  ipush(varpath(t));
+			else if (cmd.at(0) == "varpath_ptr")  t = getnum(cmd.at(1)),  ipush(varpath(t));
 			else if (cmd.at(0) == "add")  t = ipop(),  ipeek() += t;
 			else if (cmd.at(0) == "sub")  t = ipop(),  ipeek() -= t;
 			// strings

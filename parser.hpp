@@ -221,9 +221,10 @@ struct Parser : InputFile {
 		else if (peek("@identifier")) {
 			t = p_varpath();
 			ex.type = prog.varpaths.at(t).type;
-			if      (ex.type == "int")  ex.instr.push_back("varpath " + to_string(t));
+			if      (ex.type == "int")     ex.instr.push_back("varpath " + to_string(t));
 			else if (ex.type == "string")  ex.instr.push_back("varpath_str " + to_string(t));
-			else    throw error("bad type in expression", ex.type);
+			else    ex.instr.push_back("varpath_ptr " + to_string(t));
+			// else    throw error("bad type in expression", ex.type);
 		}
 		else
 			throw error("expected atom");
@@ -273,7 +274,7 @@ struct Parser : InputFile {
 			if      (in.first == "literal")  printf("    %s\n", in.second.c_str() );
 			else if (in.first == "varpath")  printf("    ---\n"),  show( prog.varpaths.at(stoi(in.second)) );
 			else if (in.first == "expr")     printf("    ---\n"),  show( prog.exprs.at(stoi(in.second)) );
-			else    printf("    ??\n");
+			else    printf("    ?? (%s)\n", in.first.c_str() );
 	}
 	void show(const Prog::VarPath& vp) const {
 		for (auto& in : vp.instr)
