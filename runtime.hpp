@@ -134,7 +134,7 @@ struct Runtime {
 			if      (in.first == "literal")  printf("%s ", Strings::deliteral(in.second).c_str() );
 			else if (in.first == "expr")     printf("%d ", expr(getnum(in.second)) );
 			else if (in.first == "varpath")  printf("%d ", varpath(getnum(in.second)) );
-			else if (in.first == "varpath_string")  printf("%s ", varpath_string(getnum(in.second)).c_str() );
+			else if (in.first == "varpath_string")  printf("%s ", varpath_str(getnum(in.second)).c_str() );
 			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
@@ -150,11 +150,10 @@ struct Runtime {
 
 
 	// variable path parsing
-	int32_t& varpath(int vp) { return varpath(prog.varpaths.at(vp).instr); }
-	int32_t& varpath(const Prog::VarPath& vp) { return varpath(vp.instr); }
-	int32_t& varpath(const vector<string>& instr) {
+	int32_t& varpath(int vp) { return varpath(prog.varpaths.at(vp)); }
+	int32_t& varpath(const Prog::VarPath& vp) {
 		int32_t* ptr = NULL;
-		for (auto& in : instr) {
+		for (auto& in : vp.instr) {
 			auto cmd = Strings::split(in);
 			if      (cmd.at(0) == "get")          ptr = &get(cmd.at(1));
 			else if (cmd.at(0) == "get_global")   ptr = &get(cmd.at(1), true);
@@ -167,37 +166,40 @@ struct Runtime {
 		return *ptr;
 		err:  throw out_of_range("memget ptr is null");
 	}
-	string varpath_string(int vp) {
+	string varpath_str(int vp) {
 		const auto& mem = heap.at( varpath(vp) ).mem;
 		return string(mem.begin(), mem.end());
 	}
 
 
 	// expression parsing
-	int32_t expr(int ex) { return expr(prog.exprs.at(ex).instr); }
-	int32_t expr(const Prog::Expr& ex) { return expr(ex.instr); }
-	int32_t expr(const vector<string>& instr) {
+	int32_t expr(int ex) { return expr(prog.exprs.at(ex)); }
+	int32_t expr(const Prog::Expr& ex) {
 		// istack = {}, sstack = {};
 		int32_t t = 0;
 		string s;
-		for (auto& in : instr) {
+		for (auto& in : ex.instr) {
 			auto cmd = Strings::split(in);
 			// integers
 			if      (cmd.at(0) == "i")    t = getnum(cmd.at(1)),  ipush(t);
 			else if (cmd.at(0) == "varpath")  t = getnum(cmd.at(1)),  ipush(varpath(t));
-			else if (cmd.at(0) == "varpath_ptr")  t = getnum(cmd.at(1)),  ipush(varpath(t));
 			else if (cmd.at(0) == "add")  t = ipop(),  ipeek() += t;
 			else if (cmd.at(0) == "sub")  t = ipop(),  ipeek() -= t;
 			// strings
 			else if (cmd.at(0) == "lit")  t = getnum(cmd.at(1)),  spush(t);
-			else if (cmd.at(0) == "varpath_str")  t = getnum(cmd.at(1)),  spush(varpath_string(t));
+			else if (cmd.at(0) == "varpath_str")  t = getnum(cmd.at(1)),  spush(varpath_str(t));
 			else if (cmd.at(0) == "strcat")  s = spop(),  speek() += s;
-			// ??
+			// other
+			else if (cmd.at(0) == "varpath_ptr")  t = getnum(cmd.at(1)),  ipush(varpath(t));
 			else    throw runtime_error("unknown expr: " + cmd.at(0));
 		}
 		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
 		return istack.size() ? ipop() : 0;
 	}
+	// string expr_str(int ex) {
+	// 	expr(ex);
+	// 	return spop();
+	// }
 	// expression stack operations
 	int32_t& ipeek() { return istack.at(istack.size() - 1); }
 	int32_t  ipop () { auto t = istack.at(istack.size() - 1);  istack.pop_back();  return t; }

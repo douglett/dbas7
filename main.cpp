@@ -18,11 +18,11 @@ void test4() {
 	printf("-----\n");
 	
 	r.show();
-	int32_t v = r.varpath({
-		"get_global a",
-		"memget USRTYPE_tt_bbb"
-	});
-	printf("result: %d\n", v);
+	// int32_t v = r.varpath({
+	// 	"get_global a",
+	// 	"memget USRTYPE_tt_bbb"
+	// });
+	// printf("result: %d\n", v);
 }
 
 
