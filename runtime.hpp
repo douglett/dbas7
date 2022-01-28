@@ -45,7 +45,7 @@ struct Runtime {
 	}
 
 	// memory
-	int32_t memalloc(int size=0) {
+	int32_t memalloc(int size) {
 		heap[++memtop] = { .mem=vector<int32_t>(size, 0) };
 		return memtop;
 	}
@@ -56,9 +56,17 @@ struct Runtime {
 	int32_t& memget(int32_t ptr, int32_t off) {
 		return heap.at(ptr).mem.at(off);
 	}
+	int32_t memsize(int32_t ptr) const {
+		return heap.at(ptr).mem.size();
+	}
+	// void memresize(int32_t ptr, int32_t size) const {
+	// 	heap.at(ptr).mem.resize()
+	// }
+	// void mempush(int32_t ptr, )
 	int32_t make(const string& type) {
-		if      (type == "int")         return 0;
-		else if (type == "string")      return memalloc();
+		if      (type == "int")               return 0;
+		else if (type == "string")            return memalloc(0);
+		else if (Tokens::is_arraytype(type))  return memalloc(0);
 		else if (typeindex(type) > -1) {
 			auto& t = prog.types.at(typeindex(type));
 			int32_t ptr = memalloc( t.members.size() ), off = 0;
@@ -66,6 +74,9 @@ struct Runtime {
 				memget(ptr, off++) = make(m.type);
 			return ptr;
 		}
+		// else if (Tokens::is_array(type)) {
+		// 	return memalloc(0);
+		// }
 		else    throw runtime_error("unknown type: " + type);
 	}
 
@@ -98,6 +109,7 @@ struct Runtime {
 		for (auto& st : bl.statements)
 			if      (st.type == "let")    let(st.loc);
 			else if (st.type == "print")  print(st.loc);
+			else if (st.type == "call")   call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
 	}
 	void let(int l) { return let(prog.lets.at(l)); }
@@ -126,6 +138,15 @@ struct Runtime {
 			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
+	void call(int ptr) { return call(prog.calls.at(ptr)); }
+	void call(const Prog::Call& ca) {
+		if (ca.fname == "push") {
+			int32_t arrptr = expr(ca.args.at(0).expr);
+			int32_t ex = expr(ca.args.at(1).expr);
+			heap.at(arrptr).mem.push_back(ex);
+		}
+		else  throw runtime_error("unknown function: " + ca.fname);
+	}
 
 
 	// variable path parsing
@@ -135,10 +156,11 @@ struct Runtime {
 		int32_t* ptr = NULL;
 		for (auto& in : instr) {
 			auto cmd = Strings::split(in);
-			if      (cmd.at(0) == "get")         ptr = &get(cmd.at(1));
-			else if (cmd.at(0) == "get_global")  ptr = &get(cmd.at(1), true);
-			else if (ptr == NULL)                goto err;
-			else if (cmd.at(0) == "memget")      ptr = &memget(*ptr, getnum(cmd.at(1)));
+			if      (cmd.at(0) == "get")          ptr = &get(cmd.at(1));
+			else if (cmd.at(0) == "get_global")   ptr = &get(cmd.at(1), true);
+			else if (ptr == NULL)                 goto err;
+			// else if (cmd.at(0) == "memget")       ptr = &memget(*ptr, getnum(cmd.at(1)) );
+			else if (cmd.at(0) == "memget_expr")  ptr = &memget(*ptr, expr(getnum(cmd.at(1))) );
 			else    throw runtime_error("unknown varpath: " + cmd.at(0));
 		}
 		if (ptr == NULL)  goto err;
@@ -188,12 +210,14 @@ struct Runtime {
 
 	// show state
 	void show() {
-		printf("  heap:  %d\n", heap.size());
+		// printf("  heap:  %d\n", heap.size() );
+		// printf("  stack:  i.%d  s.%d\n", istack.size(), sstack.size() );
+		printf("  heap %d | istack %d | sstack %d\n", heap.size(), istack.size(), sstack.size() );
 		printf("  consts:\n");
 		for (auto& c : consts)
 			printf("    %s  %d\n", c.first.c_str(), c.second );
 		printf("  globals:\n");
 		for (auto& g : globals)
-			printf("    %s  %d\n", g.first.c_str(), g.second );
+			printf("    %-10s  %d\n", g.first.c_str(), g.second );
 	}
 };

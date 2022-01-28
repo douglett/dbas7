@@ -1,15 +1,6 @@
-type tt
-	dim i
-	dim string s
-end type
-
-dim tt t
-dim tt t2
+dim int[] a
 
 block
-	let t.s = "fart"
-	let t.s = "test" + t.s
-	print t.s
-
-	# let t = t2
+	call push(a, 101+2)
+	print a[0]
 end block

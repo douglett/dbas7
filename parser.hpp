@@ -18,7 +18,7 @@ struct Parser : InputFile {
 
 
 
-	// --- State checking ---
+// --- State checking ---
 
 	int is_type(const string& type) const {
 		if (type == "int" || type == "string")  return 1;
@@ -40,7 +40,7 @@ struct Parser : InputFile {
 
 
 
-	// --- Main parsing functions ---
+// --- Main parsing functions ---
 
 	void parse() {
 		while (!eof())
@@ -72,6 +72,18 @@ struct Parser : InputFile {
 		require("end type @endl"), nextline();
 	}
 
+	void p_dim() {
+		string type, btype, name;
+		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0), name = lastrule.at(1);
+		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0), type = btype + "[]", name = lastrule.at(1);
+		else if (require("dim @identifier"))                  type = btype = "int", name = lastrule.at(0);
+		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || Tokens::is_keyword(btype) || !is_type(btype))
+			throw error("dim collision", type + ":" + name);
+		prog.globals.push_back({ name, type });
+		// TODO: assign here
+		require("@endl"), nextline();
+	}
+
 	void p_block0() {
 		require("block @endl");
 		p_block();
@@ -83,21 +95,10 @@ struct Parser : InputFile {
 		while (!eof())
 			if      (expect("@endl"))  { nextline();  continue; }
 			else if (peek("end"))      break;
-			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let", p_let() });
-			else if (peek("print"))    prog.blocks.at(bl).statements.push_back({ "print", p_print() });
+			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let",    p_let() });
+			else if (peek("print"))    prog.blocks.at(bl).statements.push_back({ "print",  p_print() });
+			else if (peek("call"))     prog.blocks.at(bl).statements.push_back({ "call",   p_call() });
 			else    throw error("unexpected block statement", currenttoken());
-	}
-
-	void p_dim() {
-		string type, name;
-		if      (expect ("dim @identifier @identifier"))      type = lastrule.at(0), name = lastrule.at(1);
-		else if (expect ("dim @identifier [ ] @identifier"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
-		else if (require("dim @identifier"))                  type = "int", name = lastrule.at(0);
-		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || Tokens::is_keyword(type) || !is_type(type))
-			throw error("dim collision", type + ":" + name);
-		prog.globals.push_back({ name, type });
-		// TODO: assign here
-		require("@endl"), nextline();
 	}
 
 	int p_let() {
@@ -138,20 +139,25 @@ struct Parser : InputFile {
 	}
 
 
+
+// --- Variable path handling ---
+
 	int p_varpath() {
-		prog.varpaths.push_back({ "<NULL>" });
-		// int32_t ex = -1, 
-		int32_t vp = prog.varpaths.size() - 1;
 		require("@identifier");
+		prog.varpaths.push_back({ "<NULL>" });
+		int32_t vp = prog.varpaths.size() - 1,  ex = -1;
 		string global = lastrule.at(0), type = getglobaltype(global), prop;
 		prog.varpaths.at(vp).instr.push_back("get_global " + lastrule.at(0));
 		// path chain
 		while (!eol())
-			if (expect("["))
-				// ex = p_expr(),
-				// prog.varpaths.at(vp).instr.push_back("memget_expr " + to_string(ex)),
-				// require("]");
-				throw error("not yet...");
+			if (expect("[")) {
+				ex = p_expr();
+				prog.varpaths.at(vp).instr.push_back("memget_expr " + to_string(ex));
+				require("]");
+				if (!Tokens::is_arraytype(type))
+					throw error("expected array type", type);
+				type = Tokens::basetype(type);
+			}
 			else if (expect(".")) {
 				require("@identifier"), prop = lastrule.at(0);
 				prog.varpaths.at(vp).instr.push_back("memget USRTYPE_" + type + "_" + prop);
@@ -162,6 +168,7 @@ struct Parser : InputFile {
 		prog.varpaths.at(vp).type = type;  // save type
 		return vp;
 	}
+
 	// p_varpath helpers
 	string getglobaltype(const string& name) const {
 		for (auto& g : prog.globals)
@@ -176,6 +183,37 @@ struct Parser : InputFile {
 		throw error("type or property not defined", type + "." + prop);
 	}
 
+
+
+// --- Function calls ---
+
+	int p_call() {
+		require("call @identifier (");
+		string fname = lastrule.at(0);
+		prog.calls.push_back({ fname });
+		int ca = prog.calls.size() - 1;
+
+		while (!eol() && !peek(")")) {
+			int ex = p_expr();
+			prog.calls.at(ca).args.push_back({ prog.exprs.at(ex).type, ex });
+			peek(")") || require(",");
+		}
+		require(") @endl"), nextline();
+
+		// type checking
+		const auto& call = prog.calls.at(ca);
+		if (fname == "push") {
+			if (call.args.size() != 2 || call.args[0].type != "int[]" || call.args[1].type != "int")
+				throw error("incorrect arguments");
+		}
+		else  throw error("unknown function", fname);
+
+		return ca;
+	}
+
+
+
+// --- Expressions ---
 
 	int p_expr(const string& type) {
 		int ex = p_expr();
@@ -232,7 +270,7 @@ struct Parser : InputFile {
 
 
 
-	// --- Show results ---
+// --- Show results ---
 
 	void show() const {
 		printf("<literals>\n");
@@ -260,6 +298,7 @@ struct Parser : InputFile {
 	void show(const Prog::Statement& st) const {
 		if      (st.type == "let")    show( prog.lets.at(st.loc) );
 		else if (st.type == "print")  show( prog.prints.at(st.loc) );
+		else if (st.type == "call")   show( prog.calls.at(st.loc) );
 		else    printf("  ??\n");
 	}
 	void show(const Prog::Let& l) const {
@@ -270,11 +309,13 @@ struct Parser : InputFile {
 	}
 	void show(const Prog::Print& pr) const {
 		printf("  print\n");
-		for (auto& in : pr.instr)
+		for (auto& in : pr.instr) {
 			if      (in.first == "literal")  printf("    %s\n", in.second.c_str() );
-			else if (in.first == "varpath")  printf("    ---\n"),  show( prog.varpaths.at(stoi(in.second)) );
-			else if (in.first == "expr")     printf("    ---\n"),  show( prog.exprs.at(stoi(in.second)) );
+			else if (in.first == "varpath")  show( prog.varpaths.at(stoi(in.second)) );
+			else if (in.first == "expr")     show( prog.exprs.at(stoi(in.second)) );
 			else    printf("    ?? (%s)\n", in.first.c_str() );
+			printf("    ---\n");
+		}
 	}
 	void show(const Prog::VarPath& vp) const {
 		for (auto& in : vp.instr)
@@ -283,5 +324,12 @@ struct Parser : InputFile {
 	void show(const Prog::Expr& ex) const {
 		for (auto& in : ex.instr)
 			printf("    %s\n", in.c_str() );
+	}
+	void show(const Prog::Call& ca) const {
+		printf("  call\n");
+		for (auto& arg : ca.args)
+			printf("    %s\n", arg.type.c_str() ),
+			show( prog.exprs.at(arg.expr) ),
+			printf("    ---\n");
 	}
 };

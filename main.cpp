@@ -38,6 +38,7 @@ void test5() {
 	r.prog = p.prog;
 	r.run();
 	printf("-----\n");
+	r.show();
 	
 	// r.expr({
 	// 	"varpath 1",

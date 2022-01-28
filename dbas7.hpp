@@ -14,15 +14,18 @@ struct Prog {
 	struct Print      { vector<pair<string, string>> instr; };
 	struct VarPath    { string type; vector<string> instr; };
 	struct Expr       { string type; vector<string> instr; };
+	struct Argument   { string type; int expr; };
+	struct Call       { string fname; vector<Argument> args; };
 
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
 	vector<string>            literals;  // temp
+	vector<Prog::Block>       blocks;
 	vector<Prog::Let>         lets;
 	vector<Prog::Print>       prints;
 	vector<Prog::VarPath>     varpaths;
 	vector<Prog::Expr>        exprs;
-	vector<Prog::Block>       blocks;
+	vector<Prog::Call>        calls;
 };
 
 
@@ -46,12 +49,12 @@ namespace Tokens {
 	int is_comment(const string& s) {
 		return s.size() >= 1 && s[0] == '#';
 	}
-	// int is_arraytype(const string& s) {
-	// 	return s.size() >= 3 && s[s.length()-2] == '[' && s[s.length()-1] == ']';
-	// }
-	// string basetype(const string& s) {
-	// 	return is_arraytype(s) ? s.substr(0, s.length()-2) : s;
-	// }
+	int is_arraytype(const string& s) {
+		return s.size() >= 3 && s[s.length()-2] == '[' && s[s.length()-1] == ']';
+	}
+	string basetype(const string& s) {
+		return is_arraytype(s) ? s.substr(0, s.length()-2) : s;
+	}
 	int is_keyword(const string& s) {
 		static const vector<string> KEYWORDS = {
 			// "int", "string",
