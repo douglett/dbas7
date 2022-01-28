@@ -199,16 +199,19 @@ struct Parser : InputFile {
 			peek(")") || require(",");
 		}
 		require(") @endl"), nextline();
-
 		// type checking
-		const auto& call = prog.calls.at(ca);
-		if (fname == "push") {
-			if (call.args.size() != 2 || call.args[0].type != "int[]" || call.args[1].type != "int")
-				throw error("incorrect arguments");
-		}
-		else  throw error("unknown function", fname);
-
+		if (!p_call_internal( prog.calls.at(ca) ))
+			throw error("unknown function", fname);
 		return ca;
+	}
+
+	int p_call_internal(const Prog::Call& ca) {
+		if (ca.fname == "push") {
+			if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
+				throw error("incorrect arguments");
+			return 1;
+		}
+		return 0;
 	}
 
 
