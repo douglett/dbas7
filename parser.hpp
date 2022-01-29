@@ -14,7 +14,7 @@ struct Parser : InputFile {
 	// parser results
 	Prog prog;
 	// parser state
-	// string ctype;
+	int flag_mod = 0;
 
 
 
@@ -43,12 +43,30 @@ struct Parser : InputFile {
 // --- Main parsing functions ---
 
 	void parse() {
+		prog.module = "default";
+		p_section("module");
+		p_section("type");
+		p_section("dim");
+		p_section("block");
+		if (!eof())
+			throw error("unexpected command", currenttoken());
+	}
+
+	void p_section(const string& section) {
 		while (!eof())
 			if      (expect("@endl"))  nextline();
-			else if (peek("type"))     p_type();
-			else if (peek("dim"))      p_dim();
-			else if (peek("block"))    p_block0();
-			else    throw error("unexpected command", currenttoken());
+			else if (section == "module" && peek("module"))   p_module();
+			else if (section == "type"   && peek("type"))     p_type();
+			else if (section == "dim"    && peek("dim"))      p_dim();
+			else if (section == "block"  && peek("block"))    p_block0();
+			else    break;
+	}
+
+	void p_module() {
+		require("module @identifier @endl");
+		if (flag_mod)  throw error("module name redefinition");
+		prog.module = lastrule.at(0),  flag_mod = 1;
+		if (Tokens::is_keyword(prog.module))  throw error("module name collision", prog.module);
 	}
 
 	void p_type() {
@@ -272,9 +290,9 @@ struct Parser : InputFile {
 		if (expect("@integer"))
 			eptr(ex).instr.push_back({ "i", stoi(lastrule.at(0)) }),
 			eptr(ex).type = "int";
-		else if (expect("@literal"))
-			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) ),
-			eptr(ex).instr.push_back({ "lit", int32_t(prog.literals.size()-1) }),
+		else if (peek("@literal"))
+			t = p_literal(),
+			eptr(ex).instr.push_back({ "lit", t }),
 			eptr(ex).type = "string";
 		else if (peek("@identifier ("))
 			t = p_call(),
@@ -291,11 +309,23 @@ struct Parser : InputFile {
 			throw error("expected atom");
 	}
 
+	int p_literal() {
+		require("@literal");
+		auto lit = Strings::deliteral( lastrule.at(0) );
+		// de-duplicate
+		for (int i = 0; i < prog.literals.size(); i++)
+			if (prog.literals[i] == lit)  return i;
+		prog.literals.push_back(lit);
+		return prog.literals.size() - 1;
+	}
+
 
 
 // --- Show results ---
 
 	void show() const {
+		printf("<module>\n");
+		printf("%s%s\n", ind(1), prog.module.c_str() );
 		printf("<literals>\n");
 		for (int i = 0; i < prog.literals.size(); i++)  show(prog.literals.at(i), i, 1);
 		printf("<types>\n");

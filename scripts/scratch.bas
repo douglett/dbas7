@@ -1,3 +1,5 @@
+module test
+
 type mytype
 	dim i
 	dim int[] a
@@ -22,6 +24,7 @@ block
 
 	push(t.a, 123)
 	print "fart"  t.a[0]
+	print "fart"
 
 	t2 = t
 	t.a[0] = 400

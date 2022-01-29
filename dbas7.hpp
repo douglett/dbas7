@@ -18,6 +18,7 @@ struct Prog {
 	struct Argument     { string type; int expr; };
 	struct Call         { string fname; vector<Argument> args; };
 
+	string                    module;
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
 	vector<string>            literals;  // temp
