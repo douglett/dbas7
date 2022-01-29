@@ -18,7 +18,7 @@ using namespace std;
 
 struct Runtime {
 	// structs
-	struct MemPage { vector<int32_t> mem; };
+	struct MemPage { string type; vector<int32_t> mem; };
 	struct MemPtr  { int32_t ptr, off; string v; };
 	typedef  map<string, int32_t>  StackFrame;
 	// state
@@ -45,8 +45,8 @@ struct Runtime {
 	}
 
 	// memory
-	int32_t memalloc(int size) {
-		heap[++memtop] = { .mem=vector<int32_t>(size, 0) };
+	int32_t memalloc(string type, int size) {
+		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
 		return memtop;
 	}
 	int32_t& get(string id, int isglobal=0) {
@@ -65,19 +65,22 @@ struct Runtime {
 	// void mempush(int32_t ptr, )
 	int32_t make(const string& type) {
 		if      (type == "int")               return 0;
-		else if (type == "string")            return memalloc(0);
-		else if (Tokens::is_arraytype(type))  return memalloc(0);
+		else if (type == "string")            return memalloc("string", 0);
+		else if (Tokens::is_arraytype(type))  return memalloc(type, 0);
 		else if (typeindex(type) > -1) {
 			auto& t = prog.types.at(typeindex(type));
-			int32_t ptr = memalloc( t.members.size() ), off = 0;
+			int32_t off = 0, ptr = memalloc( type, t.members.size() );
 			for (auto& m : t.members)
 				memget(ptr, off++) = make(m.type);
 			return ptr;
 		}
-		// else if (Tokens::is_array(type)) {
-		// 	return memalloc(0);
-		// }
 		else    throw runtime_error("unknown type: " + type);
+	}
+	int32_t make_str(const string& val) {
+		int ptr = memalloc("string", 0);
+		auto& mem = heap.at(ptr).mem;
+		mem.insert(mem.end(), val.begin(), val.end());
+		return ptr;
 	}
 
 
@@ -141,9 +144,17 @@ struct Runtime {
 	void call(int ptr) { return call(prog.calls.at(ptr)); }
 	void call(const Prog::Call& ca) {
 		if (ca.fname == "push") {
-			int32_t arrptr = expr(ca.args.at(0).expr);
-			int32_t ex = expr(ca.args.at(1).expr);
-			heap.at(arrptr).mem.push_back(ex);
+			int32_t arrptr = expr(ca.args.at(0).expr), i = 0;
+			// int32_t ex = expr(ca.args.at(1).expr);
+			auto& av = ca.args.at(1);
+			if (av.type == "int")
+				i = expr(av.expr),
+				heap.at(arrptr).mem.push_back(i);
+			else if (av.type == "string")
+				i = make_str( expr_str(av.expr) ),
+				heap.at(arrptr).mem.push_back(i);
+			else
+				throw runtime_error("can't push type: " + av.type);
 		}
 		else  throw runtime_error("unknown function: " + ca.fname);
 	}
@@ -196,10 +207,10 @@ struct Runtime {
 		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
 		return istack.size() ? ipop() : 0;
 	}
-	// string expr_str(int ex) {
-	// 	expr(ex);
-	// 	return spop();
-	// }
+	string expr_str(int ex) {
+		expr(ex);
+		return spop();
+	}
 	// expression stack operations
 	int32_t& ipeek() { return istack.at(istack.size() - 1); }
 	int32_t  ipop () { auto t = istack.at(istack.size() - 1);  istack.pop_back();  return t; }

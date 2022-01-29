@@ -207,7 +207,8 @@ struct Parser : InputFile {
 
 	int p_call_internal(const Prog::Call& ca) {
 		if (ca.fname == "push") {
-			if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
+			// if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
+			if (ca.args.size() != 2 || !Tokens::is_arraytype(ca.args[0].type) || Tokens::basetype(ca.args[0].type) != ca.args[1].type)
 				throw error("incorrect arguments");
 			return 1;
 		}
@@ -309,9 +310,11 @@ struct Parser : InputFile {
 	}
 	void show(const Prog::Let& l, int id) const {
 		printf("%slet\n", ind(id) );
-		show( prog.varpaths.at(l.varpath), id+2 );
-		printf("%s-->\n", ind(id+1) );
-		show( prog.exprs.at(l.expr), id+2 );
+			printf("%spath\n", ind(id+1) );
+				show( prog.varpaths.at(l.varpath), id+2 );
+			printf("%sto\n", ind(id+1) );
+				show( prog.exprs.at(l.expr), id+2 );
+		// printf("%s-->\n", ind(id+1) );
 	}
 	void show(const Prog::Print& pr, int id) const {
 		printf("%sprint\n", ind(id) );
@@ -337,7 +340,7 @@ struct Parser : InputFile {
 			if      (in.cmd == "i")    printf("%s%s %d\n", ind(id), in.cmd.c_str(), in.iarg );
 			else if (in.cmd == "lit")  show( prog.literals.at(in.iarg), id );
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
-				show( prog.literals.at(in.iarg), id );
+				show( prog.varpaths.at(in.iarg), id );
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
 				printf("%s%s\n", ind(id), in.cmd.c_str() );
 			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );

@@ -1,6 +1,6 @@
 dim int[] a
 dim string s
-# dim string[] ss
+dim string[] ss
 
 block
 	call push(a, 101+2)
@@ -8,4 +8,8 @@ block
 
 	let s = "fart" + "butt"
 	print s s
+
+	call push(ss, "poop")
+	call push(ss, "arse")
+	print ss[0] ss[1]
 end block
