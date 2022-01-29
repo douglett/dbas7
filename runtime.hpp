@@ -7,14 +7,6 @@
 using namespace std;
 
 
-// enum MEMTYPE {
-// 	MEMTYPE_NIL,
-// 	MEMTYPE_INT,
-// 	MEMTYPE_STRING,
-// 	MEMTYPE_ARRAY,
-// 	MEMTYPE_OBJECT,
-// };
-
 
 struct Runtime {
 	// structs
@@ -29,11 +21,13 @@ struct Runtime {
 	vector<int32_t>                istack;  // expression stack
 	vector<string>                 sstack;  // string expression stack
 	int32_t memtop = 0;
-	// prog
+	// program source
 	Prog prog;
 
 
-	// helpers
+
+// --- Helpers ---
+
 	int32_t getnum(const string& num) const {
 		try                        { return stoi(num); }
 		catch (invalid_argument e) { return consts.at(num); }
@@ -45,7 +39,9 @@ struct Runtime {
 	}
 
 
-	// main memory
+
+// --- Main memory ---
+
 	int32_t memalloc(string type, int32_t size) {
 		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
 		return memtop;
@@ -65,8 +61,7 @@ struct Runtime {
 	// }
 	// void mempush(int32_t ptr, )
 
-
-	// memory make
+	// heap memory make
 	int32_t make(const string& type) {
 		if      (type == "int")               return 0;
 		else if (type == "string")            return memalloc("string", 0);
@@ -87,8 +82,7 @@ struct Runtime {
 		return ptr;
 	}
 
-
-	// memory clone
+	// heap memory clone
 	int32_t clone(int32_t sptr) {
 		int32_t dptr = memalloc(heap.at(sptr).type, 0);
 		_clone(sptr, dptr);
@@ -132,8 +126,7 @@ struct Runtime {
 		else    throw runtime_error("clone: unknown type: " + spage.type);
 	}
 
-
-	// memory erase
+	// heap memory erase
 	void destroy(int32_t ptr) {
 		unmake(ptr);
 		heap.erase(ptr);
@@ -156,16 +149,15 @@ struct Runtime {
 	}
 
 
-	// main run function
+
+// --- Main runtime ---
+
 	void run() {
 		init();
 		// run blocks in order
 		for (auto& bl : prog.blocks)
 			block(bl);
 	}
-
-
-	// init
 	void init() {
 		for (auto& t : prog.types)    init_type(t);
 		for (auto& d : prog.globals)  init_dim(d);
@@ -300,7 +292,9 @@ struct Runtime {
 	void     spush(int loc) { sstack.push_back( prog.literals.at(loc) ); }
 
 
-	// show state
+
+// --- Show state ---
+
 	void show() {
 		// printf("  heap:  %d\n", heap.size() );
 		// printf("  stack:  i.%d  s.%d\n", istack.size(), sstack.size() );
