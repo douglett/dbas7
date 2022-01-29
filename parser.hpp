@@ -241,9 +241,9 @@ struct Parser : InputFile {
 			expect("+") || expect("-");
 			p_expr_atom(ex);
 			if      (type != ex.type)                throw error("add type mismatch");
-			else if (type == "int"    && op == "+")  ex.instr.push_back("add");
-			else if (type == "int"    && op == "-")  ex.instr.push_back("sub");
-			else if (type == "string" && op == "+")  ex.instr.push_back("strcat");
+			else if (type == "int"    && op == "+")  ex.instr.push_back({ "add" });
+			else if (type == "int"    && op == "-")  ex.instr.push_back({ "sub" });
+			else if (type == "string" && op == "+")  ex.instr.push_back({ "strcat" });
 			else if (type == "string" && op == "-")  throw error("cannot subtract strings");
 			else    throw error("unexpected add expression");
 		}
@@ -252,20 +252,19 @@ struct Parser : InputFile {
 	void p_expr_atom(Prog::Expr& ex) {
 		int t = 0;
 		if (expect("@integer"))
-			ex.instr.push_back("i " + lastrule.at(0)),
+			ex.instr.push_back({ "i", stoi(lastrule.at(0)) }),
 			ex.type = "int";
 		else if (expect("@literal"))
 			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) ),
-			ex.instr.push_back("lit " + to_string( prog.literals.size() - 1 )),
+			ex.instr.push_back({ "lit", int32_t(prog.literals.size()-1) }),
 			ex.type = "string";
 		// else if (peek("@identifier ("))
 		else if (peek("@identifier")) {
 			t = p_varpath();
 			ex.type = prog.varpaths.at(t).type;
-			if      (ex.type == "int")     ex.instr.push_back("varpath " + to_string(t));
-			else if (ex.type == "string")  ex.instr.push_back("varpath_str " + to_string(t));
-			else    ex.instr.push_back("varpath_ptr " + to_string(t));
-			// else    throw error("bad type in expression", ex.type);
+			if      (ex.type == "int")     ex.instr.push_back({ "varpath", t });
+			else if (ex.type == "string")  ex.instr.push_back({ "varpath_str", t });
+			else    ex.instr.push_back({ "varpath_ptr", t });
 		}
 		else
 			throw error("expected atom");
@@ -287,6 +286,9 @@ struct Parser : InputFile {
 	}
 	void show(const string& s, int index, int id) const {
 		printf("%s%02d \"%s\"\n", ind(id), index, s.c_str() );
+	}
+	void show(const string& s, int id) const {
+		printf("%s\"%s\"\n", ind(id), s.c_str() );
 	}
 	void show(const Prog::Type& t, int id) const {
 		printf("%stype %s\n", ind(id), t.name.c_str() );
@@ -328,11 +330,17 @@ struct Parser : InputFile {
 			else if (in.cmd == "memget_expr")
 				printf("%s%s\n", ind(id), in.cmd.c_str() ),
 				show( prog.exprs.at(in.iarg), id+1 );
-			else    printf("%s?? (%s)\n", ind(id+1), in.cmd.c_str() );
+			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
 	}
 	void show(const Prog::Expr& ex, int id) const {
 		for (auto& in : ex.instr)
-			printf("%s%s\n", ind(id), in.c_str() );
+			if      (in.cmd == "i")    printf("%s%s %d\n", ind(id), in.cmd.c_str(), in.iarg );
+			else if (in.cmd == "lit")  show( prog.literals.at(in.iarg), id );
+			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
+				show( prog.literals.at(in.iarg), id );
+			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
+				printf("%s%s\n", ind(id), in.cmd.c_str() );
+			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
 	}
 	void show(const Prog::Call& ca, int id) const {
 		printf("%scall\n", ind(id) );

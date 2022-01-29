@@ -160,6 +160,7 @@ struct Runtime {
 			else if (ptr == NULL)              goto err;
 			// else if (cmd.at(0) == "memget")       ptr = &memget(*ptr, getnum(cmd.at(1)) );
 			else if (in.cmd == "memget_expr")  ptr = &memget(*ptr, expr(in.iarg) );
+			else if (in.cmd == "memget_prop")  ptr = &memget(*ptr, getnum(in.sarg) );
 			else    throw runtime_error("unknown varpath: " + in.cmd);
 		}
 		if (ptr == NULL)  goto err;
@@ -178,21 +179,20 @@ struct Runtime {
 		// istack = {}, sstack = {};
 		int32_t t = 0;
 		string s;
-		for (auto& in : ex.instr) {
-			auto cmd = Strings::split(in);
+		for (auto& in : ex.instr)
 			// integers
-			if      (cmd.at(0) == "i")    t = getnum(cmd.at(1)),  ipush(t);
-			else if (cmd.at(0) == "varpath")  t = getnum(cmd.at(1)),  ipush(varpath(t));
-			else if (cmd.at(0) == "add")  t = ipop(),  ipeek() += t;
-			else if (cmd.at(0) == "sub")  t = ipop(),  ipeek() -= t;
+			if      (in.cmd == "i")            ipush(in.iarg);
+			else if (in.cmd == "varpath")      ipush( varpath(in.iarg) );
+			else if (in.cmd == "add")          t = ipop(),  ipeek() += t;
+			else if (in.cmd == "sub")          t = ipop(),  ipeek() -= t;
 			// strings
-			else if (cmd.at(0) == "lit")  t = getnum(cmd.at(1)),  spush(t);
-			else if (cmd.at(0) == "varpath_str")  t = getnum(cmd.at(1)),  spush(varpath_str(t));
-			else if (cmd.at(0) == "strcat")  s = spop(),  speek() += s;
+			else if (in.cmd == "lit")          spush(in.iarg);
+			else if (in.cmd == "varpath_str")  spush(varpath_str(in.iarg));
+			else if (in.cmd == "strcat")       s = spop(),  speek() += s;
 			// other
-			else if (cmd.at(0) == "varpath_ptr")  t = getnum(cmd.at(1)),  ipush(varpath(t));
-			else    throw runtime_error("unknown expr: " + cmd.at(0));
-		}
+			else if (in.cmd == "varpath_ptr")  ipush(varpath(in.iarg));
+			else    throw runtime_error("unknown expr: " + in.cmd);
+		// sanity check
 		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
 		return istack.size() ? ipop() : 0;
 	}

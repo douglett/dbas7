@@ -8,15 +8,15 @@ struct Prog {
 	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
-	struct Statement  { string type; int loc; };
-	struct Block      { vector<Statement> statements; };
-	struct Let        { string type; int varpath, expr; };
-	struct Print      { vector<pair<string, string>> instr; };
-	struct Instr      { string cmd; int32_t iarg; string sarg; };
-	struct VarPath    { string type; vector<Instr> instr; };
-	struct Expr       { string type; vector<string> instr; };
-	struct Argument   { string type; int expr; };
-	struct Call       { string fname; vector<Argument> args; };
+	struct Statement    { string type; int loc; };
+	struct Block        { vector<Statement> statements; };
+	struct Let          { string type; int varpath, expr; };
+	struct Print        { vector<pair<string, string>> instr; };
+	struct Instruction  { string cmd; int32_t iarg; string sarg; };
+	struct VarPath      { string type; vector<Instruction> instr; };
+	struct Expr         { string type; vector<Instruction> instr; };
+	struct Argument     { string type; int expr; };
+	struct Call         { string fname; vector<Argument> args; };
 
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
