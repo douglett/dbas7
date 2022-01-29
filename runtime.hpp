@@ -44,7 +44,8 @@ struct Runtime {
 		return -1;
 	}
 
-	// memory
+
+	// main memory
 	int32_t memalloc(string type, int32_t size) {
 		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
 		return memtop;
@@ -63,6 +64,9 @@ struct Runtime {
 	// 	heap.at(ptr).mem.resize()
 	// }
 	// void mempush(int32_t ptr, )
+
+
+	// memory make
 	int32_t make(const string& type) {
 		if      (type == "int")               return 0;
 		else if (type == "string")            return memalloc("string", 0);
@@ -82,8 +86,61 @@ struct Runtime {
 		mem.insert(mem.end(), val.begin(), val.end());
 		return ptr;
 	}
+
+
+	// memory clone
+	int32_t clone(int32_t sptr) {
+		int32_t dptr = memalloc(heap.at(sptr).type, 0);
+		_clone(sptr, dptr);
+		return dptr;
+	}
+	void cloneto(int32_t sptr, int32_t dptr) {
+		unmake(dptr);
+		_clone(sptr, dptr);
+	}
+	void clonestr(string s, int32_t dptr) {
+		if (heap.at(dptr).type != "string")
+			throw runtime_error("clonestr: dest not string");
+		heap.at(dptr).mem = {};
+		heap.at(dptr).mem.insert( heap.at(dptr).mem.end(), s.begin(), s.end() );
+	}
+	void _clone(int32_t sptr, int32_t dptr) {
+		// TODO: is this memory safe?
+		auto& spage = heap.at(sptr);
+		auto& dpage = heap.at(dptr);
+		if (dpage.mem.size() != 0)  printf("WARNING: _clone: dptr is not empty\n");
+		// linear memory
+		if (spage.type == "string" || spage.type == "int[]") {
+			dpage.mem = spage.mem;
+		}
+		// objects
+		else if (typeindex(spage.type) > -1) {
+			auto& t = prog.types.at( typeindex(spage.type) );  // get type descriptor
+			if (spage.mem.size() != t.members.size())
+				throw runtime_error("_clone: object: source memory does not match");
+			dpage.mem.resize(spage.mem.size(), 0);
+			for (int i = 0; i < t.members.size(); i++)
+				if    (t.members[i].type == "int")  dpage.mem[i] = spage.mem[i];
+				else  dpage.mem[i] = clone(spage.mem[i]);
+		}
+		// arrays
+		else if (Tokens::is_arraytype(spage.type)) {
+			dpage.mem.resize(spage.mem.size(), 0);
+			for (int i = 0; i < spage.mem.size(); i++)
+				dpage.mem[i] = clone(spage.mem[i]);
+		}
+		else    throw runtime_error("clone: unknown type: " + spage.type);
+	}
+
+
+	// memory erase
 	void destroy(int32_t ptr) {
+		unmake(ptr);
+		heap.erase(ptr);
+	}
+	void unmake(int32_t ptr) {
 		auto& page = heap.at(ptr);
+		// printf("unmaking %s\n", page.type.c_str() );
 		if (page.type == "int[]" || page.type == "string") ;
 		else if (typeindex(page.type) > -1) {
 			auto& t = prog.types.at( typeindex(page.type) );
@@ -91,8 +148,8 @@ struct Runtime {
 				if (t.members[i].type != "int")
 					destroy(page.mem.at(i));
 		}
-		else  throw runtime_error("destroy: unknown type: " + page.type);
-		heap.erase(ptr);
+		else  throw runtime_error("unmake: unknown type: " + page.type);
+		page.mem = {};
 	}
 
 
@@ -131,17 +188,9 @@ struct Runtime {
 	void let(const Prog::Let& l) {
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
-		if      (l.type == "int")  vp = ex;
-		else if (l.type == "string") {
-			auto& mem = heap.at(vp).mem;
-			auto s = spop();
-			mem = {};
-			mem.insert(mem.end(), s.begin(), s.end());
-		}
-		else if (vp != ex) {
-			throw runtime_error("TODO: assignment clone");
-		}
-		// else    throw runtime_error("let assignment error");
+		if      (l.type == "int")     vp = ex;
+		else if (l.type == "string")  clonestr(spop(), vp);
+		else if (vp != ex)            cloneto(ex, vp);
 	}
 	void print(int pr) { return print(prog.prints.at(pr)); }
 	void print(const Prog::Print& pr) {
@@ -152,17 +201,19 @@ struct Runtime {
 			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
+
+
+	// function calls
 	int32_t call(int ptr) { return call(prog.calls.at(ptr)); }
 	int32_t call(const Prog::Call& ca) {
 		// push array
 		if (ca.fname == "push") {
-			int32_t arrptr = expr(ca.args.at(0).expr),
-			        ex     = expr(ca.args.at(1).expr),
-			        i      = 0;
+			int32_t t = 0,  arrptr = expr(ca.args.at(0).expr),  val = expr(ca.args.at(1).expr);
 			auto&   av     = ca.args.at(1);
-			if      (av.type == "int")     heap.at(arrptr).mem.push_back(ex);
-			else if (av.type == "string")  i = make_str(spop()),  heap.at(arrptr).mem.push_back(i);
-			else    throw runtime_error("can't push type: " + av.type);
+			if      (av.type == "int")     heap.at(arrptr).mem.push_back(val);
+			else if (av.type == "string")  t = make_str(spop()),  heap.at(arrptr).mem.push_back(t);
+			else    t = clone(val),  heap.at(arrptr).mem.push_back(t);
+			// else    throw runtime_error("can't push type: " + av.type);
 			return 0;
 		}
 		// pop array

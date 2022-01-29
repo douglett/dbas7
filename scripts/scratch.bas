@@ -8,15 +8,11 @@ dim tt[] arr
 dim tt t
 
 block
-	call push(ss, "fart")
-	print ss[0]
-
-	# call len(ss)
-	let i = len(ss)
-	print "len is" i
+	t.i = 101
+	push(arr, t)
+	print "here 1" arr[0].i
 	
-	let i = len("poopsicle")
-	print "len is" i
-
-	t.i = 1
+	t.i = 102
+	arr[0] = t
+	print "here 2" arr[0].i
 end block
