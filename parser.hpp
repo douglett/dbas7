@@ -118,22 +118,13 @@ struct Parser : InputFile {
 	int p_print() {
 		require("print");
 		prog.prints.push_back({});
-		int pr = prog.prints.size() - 1, loc = 0;
-
-		while (!eol())
-			if      (expect("@literal"))   prog.prints.at(pr).instr.push_back({ "literal", lastrule.at(0) });
-			else if (peek("@integer"))     loc = p_expr(),  prog.prints.at(pr).instr.push_back({ "expr", to_string(loc) });
-			else if (peek("@identifier")) {
-				// TODO: this is messy
-				loc = p_varpath();
-				string cmd, vptype = prog.varpaths.at(loc).type;
-				if      (vptype == "int")     cmd = "varpath";
-				else if (vptype == "string")  cmd = "varpath_string";
-				else    throw error("invalid varpath type", vptype);
-				prog.prints.at(pr).instr.push_back({ cmd, to_string(loc) });
-			}
-			else    throw error("unexpected in print", currenttoken());
-
+		int pr = prog.prints.size() - 1;
+		while (!eol()) {
+			int ex = p_expr();
+			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr", to_string(ex) });
+			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", to_string(ex) });
+			else    throw error("unexpected type in print", eptr(ex).type);
+		}
 		require("@endl"), nextline();
 		return pr;
 	}
@@ -332,18 +323,18 @@ struct Parser : InputFile {
 		printf("%slet\n", ind(id) );
 			printf("%spath\n", ind(id+1) );
 				show( prog.varpaths.at(l.varpath), id+2 );
-			printf("%sto\n", ind(id+1) );
+			printf("%sexpr\n", ind(id+1) );
 				show( prog.exprs.at(l.expr), id+2 );
 		// printf("%s-->\n", ind(id+1) );
 	}
 	void show(const Prog::Print& pr, int id) const {
 		printf("%sprint\n", ind(id) );
 		for (auto& in : pr.instr) {
-			if      (in.first == "literal")  printf("%s%s\n", ind(id+1), in.second.c_str() );
-			else if (in.first == "varpath")  show( prog.varpaths.at(stoi(in.second)), id+1 );
-			else if (in.first == "expr")     show( prog.exprs.at(stoi(in.second)), id+1 );
-			else    printf("%s?? (%s)\n", ind(id+1), in.first.c_str() );
-			// printf("    ---\n");
+			printf("%s%s\n", ind(id+1), in.first.c_str() );
+			if      (in.first == "literal")   show( prog.literals.at(stoi(in.second)), id+2 );
+			else if (in.first == "expr")      show( prog.exprs.at(stoi(in.second)), id+2 );
+			else if (in.first == "expr_str")  show( prog.exprs.at(stoi(in.second)), id+2 );
+			else    printf("%s?? (%s)\n", ind(id+2), in.first.c_str() );
 		}
 	}
 	void show(const Prog::VarPath& vp, int id) const {
@@ -368,10 +359,10 @@ struct Parser : InputFile {
 			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
 	}
 	void show(const Prog::Call& ca, int id) const {
-		printf("%scall\n", ind(id) );
+		printf("%scall %s\n", ind(id), ca.fname.c_str() );
 		for (auto& arg : ca.args) {
-			printf("%s%s\n", ind(id), arg.type.c_str() );
-			show( prog.exprs.at(arg.expr), id+1 );
+			printf("%sexpr %s\n", ind(id+1), arg.type.c_str() );
+			show( prog.exprs.at(arg.expr), id+2 );
 			// printf("    ---\n");
 		}
 	}

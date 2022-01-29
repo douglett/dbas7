@@ -146,10 +146,9 @@ struct Runtime {
 	void print(int pr) { return print(prog.prints.at(pr)); }
 	void print(const Prog::Print& pr) {
 		for (auto& in : pr.instr)
-			if      (in.first == "literal")  printf("%s ", Strings::deliteral(in.second).c_str() );
-			else if (in.first == "expr")     printf("%d ", expr(getnum(in.second)) );
-			else if (in.first == "varpath")  printf("%d ", varpath(getnum(in.second)) );
-			else if (in.first == "varpath_string")  printf("%s ", varpath_str(getnum(in.second)).c_str() );
+			if      (in.first == "literal")   printf("%s ", Strings::deliteral(in.second).c_str() );
+			else if (in.first == "expr")      printf("%d ", expr(getnum(in.second)) );
+			else if (in.first == "expr_str")  expr(getnum(in.second)),  printf("%s ", spop().c_str() );
 			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
