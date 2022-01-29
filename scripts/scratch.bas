@@ -26,4 +26,7 @@ block
 	t2 = t
 	t.a[0] = 400
 	print "fart 2"  t.a[0]  t2.a[0]
+
+	default(t)
+	print t.i len(t.a)
 end block

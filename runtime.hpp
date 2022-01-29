@@ -37,6 +37,10 @@ struct Runtime {
 			if (prog.types[i].name == name)  return i;
 		return -1;
 	}
+	const Prog::Type& typedesc(const string& name) const {
+		if (typeindex(name) == -1)  throw runtime_error("missing type: " + name);
+		return prog.types[typeindex(name)];
+	}
 
 
 
@@ -67,7 +71,7 @@ struct Runtime {
 		else if (type == "string")            return memalloc("string", 0);
 		else if (Tokens::is_arraytype(type))  return memalloc(type, 0);
 		else if (typeindex(type) > -1) {
-			auto& t = prog.types.at( typeindex(type) );
+			auto& t = typedesc(type);
 			int32_t off = 0,  ptr = memalloc( type, t.members.size() );
 			for (auto& m : t.members)
 				memget(ptr, off++) = make(m.type);
@@ -77,8 +81,7 @@ struct Runtime {
 	}
 	int32_t make_str(const string& val) {
 		int ptr = memalloc("string", 0);
-		auto& mem = heap.at(ptr).mem;
-		mem.insert(mem.end(), val.begin(), val.end());
+		heap.at(ptr).mem.insert( heap.at(ptr).mem.end(), val.begin(), val.end() );
 		return ptr;
 	}
 
@@ -109,7 +112,7 @@ struct Runtime {
 			dpage.mem = spage.mem;
 		// objects
 		else if (typeindex(spage.type) > -1) {
-			auto& t = prog.types.at( typeindex(spage.type) );  // get type descriptor
+			auto& t = typedesc(spage.type);
 			if (spage.mem.size() != t.members.size())
 				throw runtime_error("_clone: object: source memory does not match");
 			dpage.mem.resize(spage.mem.size(), 0);
@@ -136,7 +139,7 @@ struct Runtime {
 		// printf("unmaking %s\n", page.type.c_str() );
 		if (page.type == "int[]" || page.type == "string") ;
 		else if (typeindex(page.type) > -1) {
-			auto& t = prog.types.at( typeindex(page.type) );
+			auto& t = typedesc(page.type);
 			for (int i = 0; i < t.members.size(); i++)
 				if (t.members[i].type != "int")
 					destroy(page.mem.at(i));
@@ -146,6 +149,12 @@ struct Runtime {
 				destroy(p);
 		else  throw runtime_error("unmake: unknown type: " + page.type);
 		page.mem = {};
+	}
+	void unmake_default(int ptr) {
+		unmake(ptr);
+		int p = make(heap.at(ptr).type);  // new default object
+		heap.at(ptr).mem = heap.at(p).mem;  // copy default values
+		heap.erase(p);  // remove old object
 	}
 
 
@@ -225,6 +234,12 @@ struct Runtime {
 			int32_t arrptr = expr(ca.args.at(0).expr);
 			if (ca.args.at(0).type == "string")  return spop().size();
 			else  return heap.at(arrptr).mem.size();
+		}
+		// reset memory to default
+		else if (ca.fname == "default") {
+			int32_t ptr = expr(ca.args.at(0).expr);
+			unmake_default(ptr);
+			return 0;
 		}
 		else  throw runtime_error("unknown function: " + ca.fname);
 	}

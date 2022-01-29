@@ -44,7 +44,7 @@ struct Parser : InputFile {
 
 	void parse() {
 		while (!eof())
-			if      (expect("@endl"))  { nextline();  continue; }
+			if      (expect("@endl"))  nextline();
 			else if (peek("type"))     p_type();
 			else if (peek("dim"))      p_dim();
 			else if (peek("block"))    p_block0();
@@ -84,6 +84,7 @@ struct Parser : InputFile {
 		require("@endl"), nextline();
 	}
 
+	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
 	void p_block0() {
 		require("block @endl");
 		p_block();
@@ -102,7 +103,6 @@ struct Parser : InputFile {
 			else if (peek("@identifier"))     bptr(bl).statements.push_back({ "let",    p_let() });
 			else    throw error("unexpected block statement", currenttoken());
 	}
-	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
 
 	int p_let() {
 		// require("let");
@@ -221,6 +221,10 @@ struct Parser : InputFile {
 		}
 		else if (ca.fname == "len") {
 			if (ca.args.size() == 1 && (Tokens::is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
+			throw error("incorrect argument");
+		}
+		else if (ca.fname == "default") {
+			if (ca.args.size() == 1 && ca.args[0].type != "int")  return 1;
 			throw error("incorrect argument");
 		}
 		return 0;
