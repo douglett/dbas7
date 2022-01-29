@@ -1,11 +1,11 @@
-type tt
+type mytype
 	dim i
+	# dim int[] a
 end type
 
-dim string[] ss
-dim i
-dim tt[] arr
-dim tt t
+dim mytype[] arr
+dim mytype[] arr2
+dim mytype t
 
 block
 	t.i = 101
@@ -15,4 +15,7 @@ block
 	t.i = 102
 	arr[0] = t
 	print "here 2" arr[0].i
+
+	arr2 = arr
+	print "here 3" arr2[0].i
 end block

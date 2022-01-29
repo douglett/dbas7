@@ -148,6 +148,9 @@ struct Runtime {
 				if (t.members[i].type != "int")
 					destroy(page.mem.at(i));
 		}
+		else if (Tokens::is_arraytype(page.type))
+			for (auto p : page.mem)
+				destroy(p);
 		else  throw runtime_error("unmake: unknown type: " + page.type);
 		page.mem = {};
 	}
