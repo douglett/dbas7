@@ -12,4 +12,6 @@ block
 	call push(ss, "poop")
 	call push(ss, "arse")
 	print ss[0] ss[1]
+
+	call pop(ss)
 end block

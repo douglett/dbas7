@@ -208,9 +208,13 @@ struct Parser : InputFile {
 	int p_call_internal(const Prog::Call& ca) {
 		if (ca.fname == "push") {
 			// if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
-			if (ca.args.size() != 2 || !Tokens::is_arraytype(ca.args[0].type) || Tokens::basetype(ca.args[0].type) != ca.args[1].type)
-				throw error("incorrect arguments");
-			return 1;
+			if (ca.args.size() == 2 && Tokens::is_arraytype(ca.args[0].type) 
+				&& Tokens::basetype(ca.args[0].type) == ca.args[1].type)  return 1;
+			throw error("incorrect arguments");
+		}
+		else if (ca.fname == "pop") {
+			if (ca.args.size() == 1 && Tokens::is_arraytype(ca.args[0].type))  return 1;
+			throw error("incorrect argument");
 		}
 		return 0;
 	}

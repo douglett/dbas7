@@ -45,7 +45,7 @@ struct Runtime {
 	}
 
 	// memory
-	int32_t memalloc(string type, int size) {
+	int32_t memalloc(string type, int32_t size) {
 		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
 		return memtop;
 	}
@@ -68,19 +68,31 @@ struct Runtime {
 		else if (type == "string")            return memalloc("string", 0);
 		else if (Tokens::is_arraytype(type))  return memalloc(type, 0);
 		else if (typeindex(type) > -1) {
-			auto& t = prog.types.at(typeindex(type));
-			int32_t off = 0, ptr = memalloc( type, t.members.size() );
+			auto& t = prog.types.at( typeindex(type) );
+			int32_t off = 0,  ptr = memalloc( type, t.members.size() );
 			for (auto& m : t.members)
 				memget(ptr, off++) = make(m.type);
 			return ptr;
 		}
-		else    throw runtime_error("unknown type: " + type);
+		else    throw runtime_error("make: unknown type: " + type);
 	}
 	int32_t make_str(const string& val) {
 		int ptr = memalloc("string", 0);
 		auto& mem = heap.at(ptr).mem;
 		mem.insert(mem.end(), val.begin(), val.end());
 		return ptr;
+	}
+	void destroy(int32_t ptr) {
+		auto& page = heap.at(ptr);
+		if (page.type == "int[]" || page.type == "string") ;
+		else if (typeindex(page.type) > -1) {
+			auto& t = prog.types.at( typeindex(page.type) );
+			for (int i = 0; i < t.members.size(); i++)
+				if (t.members[i].type != "int")
+					destroy(page.mem.at(i));
+		}
+		else  throw runtime_error("destroy: unknown type: " + page.type);
+		heap.erase(ptr);
 	}
 
 
@@ -143,18 +155,22 @@ struct Runtime {
 	}
 	void call(int ptr) { return call(prog.calls.at(ptr)); }
 	void call(const Prog::Call& ca) {
+		// push array
 		if (ca.fname == "push") {
-			int32_t arrptr = expr(ca.args.at(0).expr), i = 0;
-			// int32_t ex = expr(ca.args.at(1).expr);
-			auto& av = ca.args.at(1);
-			if (av.type == "int")
-				i = expr(av.expr),
-				heap.at(arrptr).mem.push_back(i);
-			else if (av.type == "string")
-				i = make_str( expr_str(av.expr) ),
-				heap.at(arrptr).mem.push_back(i);
-			else
-				throw runtime_error("can't push type: " + av.type);
+			int32_t arrptr = expr(ca.args.at(0).expr),
+			        ex     = expr(ca.args.at(1).expr),
+			        i      = 0;
+			auto&   av     = ca.args.at(1);
+			if      (av.type == "int")     heap.at(arrptr).mem.push_back(ex);
+			else if (av.type == "string")  i = make_str(spop()),  heap.at(arrptr).mem.push_back(i);
+			else    throw runtime_error("can't push type: " + av.type);
+		}
+		// pop array
+		else if (ca.fname == "pop") {
+			int32_t arrptr = expr(ca.args.at(0).expr);
+			auto&   mem    = heap.at(arrptr).mem;
+			if (ca.args.at(0).type != "int[]")  destroy( mem.at(mem.size() - 1) );
+			mem.pop_back();
 		}
 		else  throw runtime_error("unknown function: " + ca.fname);
 	}
