@@ -93,16 +93,20 @@ struct Parser : InputFile {
 		prog.blocks.push_back({});
 		int bl = prog.blocks.size() - 1;
 		while (!eof())
-			if      (expect("@endl"))  { nextline();  continue; }
-			else if (peek("end"))      break;
-			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let",    p_let() });
-			else if (peek("print"))    prog.blocks.at(bl).statements.push_back({ "print",  p_print() });
-			else if (peek("call"))     prog.blocks.at(bl).statements.push_back({ "call",   p_call_stmt() });
+			if      (expect("@endl"))         nextline();
+			else if (peek("end"))             break;
+			else if (peek("print"))           bptr(bl).statements.push_back({ "print",  p_print() });
+			else if (peek("let"))             bptr(bl).statements.push_back({ "let",    p_let() });
+			else if (peek("call"))            bptr(bl).statements.push_back({ "call",   p_call_stmt() });
+			else if (peek("@identifier ("))   bptr(bl).statements.push_back({ "call",   p_call_stmt() });
+			else if (peek("@identifier"))     bptr(bl).statements.push_back({ "let",    p_let() });
 			else    throw error("unexpected block statement", currenttoken());
 	}
+	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
 
 	int p_let() {
-		require("let");
+		// require("let");
+		expect("let");  // optional
 		prog.lets.push_back({ "<NULL>", -1, -1 });
 		int let = prog.lets.size() - 1;
 		// dest varpath
@@ -197,7 +201,8 @@ struct Parser : InputFile {
 	}
 	
 	int p_call_stmt() {
-		require("call");
+		// require("call");
+		expect("call");  // optional
 		int ca = p_call();
 		require("@endl"), nextline();
 		return ca;
