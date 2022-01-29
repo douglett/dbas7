@@ -97,7 +97,7 @@ struct Parser : InputFile {
 			else if (peek("end"))      break;
 			else if (peek("let"))      prog.blocks.at(bl).statements.push_back({ "let",    p_let() });
 			else if (peek("print"))    prog.blocks.at(bl).statements.push_back({ "print",  p_print() });
-			else if (peek("call"))     prog.blocks.at(bl).statements.push_back({ "call",   p_call() });
+			else if (peek("call"))     prog.blocks.at(bl).statements.push_back({ "call",   p_call_stmt() });
 			else    throw error("unexpected block statement", currenttoken());
 	}
 
@@ -188,7 +188,7 @@ struct Parser : InputFile {
 // --- Function calls ---
 
 	int p_call() {
-		require("call @identifier (");
+		require("@identifier (");
 		string fname = lastrule.at(0);
 		prog.calls.push_back({ fname });
 		int ca = prog.calls.size() - 1;
@@ -198,10 +198,17 @@ struct Parser : InputFile {
 			prog.calls.at(ca).args.push_back({ prog.exprs.at(ex).type, ex });
 			peek(")") || require(",");
 		}
-		require(") @endl"), nextline();
+		require(")");
 		// type checking
 		if (!p_call_internal( prog.calls.at(ca) ))
 			throw error("unknown function", fname);
+		return ca;
+	}
+	
+	int p_call_stmt() {
+		require("call");
+		int ca = p_call();
+		require("@endl"), nextline();
 		return ca;
 	}
 
@@ -216,12 +223,18 @@ struct Parser : InputFile {
 			if (ca.args.size() == 1 && Tokens::is_arraytype(ca.args[0].type))  return 1;
 			throw error("incorrect argument");
 		}
+		else if (ca.fname == "len") {
+			if (ca.args.size() == 1 && (Tokens::is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
+			throw error("incorrect argument");
+		}
 		return 0;
 	}
 
 
 
 // --- Expressions ---
+
+	Prog::Expr& eptr(int ptr) { return prog.exprs.at(ptr); }
 
 	int p_expr(const string& type) {
 		int ex = p_expr();
@@ -233,43 +246,46 @@ struct Parser : InputFile {
 	int p_expr() {
 		prog.exprs.push_back({ "<NULL>" });
 		int ex = prog.exprs.size() - 1;
-		p_expr_add( prog.exprs.at(ex) );
+		p_expr_add(ex);
 		return ex;
 	}
 
-	void p_expr_add(Prog::Expr& ex) {
+	void p_expr_add(int ex) {
 		p_expr_atom(ex);
-		auto type = ex.type;
+		auto type = eptr(ex).type;
 		if (type != "int" && type != "string")  return;
 		while (peek("+") || peek("-")) {
 			string op = currenttoken();
 			expect("+") || expect("-");
 			p_expr_atom(ex);
-			if      (type != ex.type)                throw error("add type mismatch");
-			else if (type == "int"    && op == "+")  ex.instr.push_back({ "add" });
-			else if (type == "int"    && op == "-")  ex.instr.push_back({ "sub" });
-			else if (type == "string" && op == "+")  ex.instr.push_back({ "strcat" });
+			if      (type != eptr(ex).type)                throw error("add type mismatch");
+			else if (type == "int"    && op == "+")  eptr(ex).instr.push_back({ "add" });
+			else if (type == "int"    && op == "-")  eptr(ex).instr.push_back({ "sub" });
+			else if (type == "string" && op == "+")  eptr(ex).instr.push_back({ "strcat" });
 			else if (type == "string" && op == "-")  throw error("cannot subtract strings");
 			else    throw error("unexpected add expression");
 		}
 	}
 
-	void p_expr_atom(Prog::Expr& ex) {
+	void p_expr_atom(int ex) {
 		int t = 0;
 		if (expect("@integer"))
-			ex.instr.push_back({ "i", stoi(lastrule.at(0)) }),
-			ex.type = "int";
+			eptr(ex).instr.push_back({ "i", stoi(lastrule.at(0)) }),
+			eptr(ex).type = "int";
 		else if (expect("@literal"))
 			prog.literals.push_back( Strings::deliteral(lastrule.at(0)) ),
-			ex.instr.push_back({ "lit", int32_t(prog.literals.size()-1) }),
-			ex.type = "string";
-		// else if (peek("@identifier ("))
+			eptr(ex).instr.push_back({ "lit", int32_t(prog.literals.size()-1) }),
+			eptr(ex).type = "string";
+		else if (peek("@identifier ("))
+			t = p_call(),
+			eptr(ex).instr.push_back({ "call", t }),
+			eptr(ex).type = "int";
 		else if (peek("@identifier")) {
 			t = p_varpath();
-			ex.type = prog.varpaths.at(t).type;
-			if      (ex.type == "int")     ex.instr.push_back({ "varpath", t });
-			else if (ex.type == "string")  ex.instr.push_back({ "varpath_str", t });
-			else    ex.instr.push_back({ "varpath_ptr", t });
+			eptr(ex).type = prog.varpaths.at(t).type;
+			if      (eptr(ex).type == "int")     eptr(ex).instr.push_back({ "varpath", t });
+			else if (eptr(ex).type == "string")  eptr(ex).instr.push_back({ "varpath_str", t });
+			else    eptr(ex).instr.push_back({ "varpath_ptr", t });
 		}
 		else
 			throw error("expected atom");
@@ -345,6 +361,8 @@ struct Parser : InputFile {
 			else if (in.cmd == "lit")  show( prog.literals.at(in.iarg), id );
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
 				show( prog.varpaths.at(in.iarg), id );
+			else if (in.cmd == "call")
+				show( prog.calls.at(in.iarg), id );
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
 				printf("%s%s\n", ind(id), in.cmd.c_str() );
 			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );

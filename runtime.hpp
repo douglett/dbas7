@@ -153,8 +153,8 @@ struct Runtime {
 			else    throw runtime_error("unknown print: " + in.first);
 		printf("\n");
 	}
-	void call(int ptr) { return call(prog.calls.at(ptr)); }
-	void call(const Prog::Call& ca) {
+	int32_t call(int ptr) { return call(prog.calls.at(ptr)); }
+	int32_t call(const Prog::Call& ca) {
 		// push array
 		if (ca.fname == "push") {
 			int32_t arrptr = expr(ca.args.at(0).expr),
@@ -164,13 +164,22 @@ struct Runtime {
 			if      (av.type == "int")     heap.at(arrptr).mem.push_back(ex);
 			else if (av.type == "string")  i = make_str(spop()),  heap.at(arrptr).mem.push_back(i);
 			else    throw runtime_error("can't push type: " + av.type);
+			return 0;
 		}
 		// pop array
 		else if (ca.fname == "pop") {
 			int32_t arrptr = expr(ca.args.at(0).expr);
 			auto&   mem    = heap.at(arrptr).mem;
-			if (ca.args.at(0).type != "int[]")  destroy( mem.at(mem.size() - 1) );
+			int32_t val    = mem.at(mem.size() - 1);  // save the value we're popping
+			if (ca.args.at(0).type != "int[]")  destroy(val);
 			mem.pop_back();
+			return val;  // return it
+		}
+		// array length
+		else if (ca.fname == "len") {
+			int32_t arrptr = expr(ca.args.at(0).expr);
+			if (ca.args.at(0).type == "string")  return spop().size();
+			else  return heap.at(arrptr).mem.size();
 		}
 		else  throw runtime_error("unknown function: " + ca.fname);
 	}
@@ -218,15 +227,16 @@ struct Runtime {
 			else if (in.cmd == "strcat")       s = spop(),  speek() += s;
 			// other
 			else if (in.cmd == "varpath_ptr")  ipush(varpath(in.iarg));
+			else if (in.cmd == "call")         ipush(call(in.iarg));
 			else    throw runtime_error("unknown expr: " + in.cmd);
 		// sanity check
 		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
 		return istack.size() ? ipop() : 0;
 	}
-	string expr_str(int ex) {
-		expr(ex);
-		return spop();
-	}
+	// string expr_str(int ex) {
+	// 	expr(ex);
+	// 	return spop();
+	// }
 	// expression stack operations
 	int32_t& ipeek() { return istack.at(istack.size() - 1); }
 	int32_t  ipop () { auto t = istack.at(istack.size() - 1);  istack.pop_back();  return t; }

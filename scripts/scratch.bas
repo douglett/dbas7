@@ -1,17 +1,14 @@
-dim int[] a
-dim string s
 dim string[] ss
+dim i
 
 block
-	call push(a, 101+2)
-	print a[0]
+	call push(ss, "fart")
+	print ss[0]
 
-	let s = "fart" + "butt"
-	print s s
-
-	call push(ss, "poop")
-	call push(ss, "arse")
-	print ss[0] ss[1]
-
-	call pop(ss)
+	# call len(ss)
+	let i = len(ss)
+	print "len is" i
+	
+	let i = len("poopsicle")
+	print "len is" i
 end block
