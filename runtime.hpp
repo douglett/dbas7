@@ -154,13 +154,13 @@ struct Runtime {
 	int32_t& varpath(const Prog::VarPath& vp) {
 		int32_t* ptr = NULL;
 		for (auto& in : vp.instr) {
-			auto cmd = Strings::split(in);
-			if      (cmd.at(0) == "get")          ptr = &get(cmd.at(1));
-			else if (cmd.at(0) == "get_global")   ptr = &get(cmd.at(1), true);
-			else if (ptr == NULL)                 goto err;
+			// auto cmd = Strings::split(in);
+			if      (in.cmd == "get")          ptr = &get(in.sarg);
+			else if (in.cmd == "get_global")   ptr = &get(in.sarg, true);
+			else if (ptr == NULL)              goto err;
 			// else if (cmd.at(0) == "memget")       ptr = &memget(*ptr, getnum(cmd.at(1)) );
-			else if (cmd.at(0) == "memget_expr")  ptr = &memget(*ptr, expr(getnum(cmd.at(1))) );
-			else    throw runtime_error("unknown varpath: " + cmd.at(0));
+			else if (in.cmd == "memget_expr")  ptr = &memget(*ptr, expr(in.iarg) );
+			else    throw runtime_error("unknown varpath: " + in.cmd);
 		}
 		if (ptr == NULL)  goto err;
 		return *ptr;

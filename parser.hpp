@@ -147,12 +147,12 @@ struct Parser : InputFile {
 		prog.varpaths.push_back({ "<NULL>" });
 		int32_t vp = prog.varpaths.size() - 1,  ex = -1;
 		string global = lastrule.at(0), type = getglobaltype(global), prop;
-		prog.varpaths.at(vp).instr.push_back("get_global " + lastrule.at(0));
+		prog.varpaths.at(vp).instr.push_back({ "get_global", 0, lastrule.at(0) });
 		// path chain
 		while (!eol())
 			if (expect("[")) {
 				ex = p_expr();
-				prog.varpaths.at(vp).instr.push_back("memget_expr " + to_string(ex));
+				prog.varpaths.at(vp).instr.push_back({ "memget_expr", ex });
 				require("]");
 				if (!Tokens::is_arraytype(type))
 					throw error("expected array type", type);
@@ -160,7 +160,7 @@ struct Parser : InputFile {
 			}
 			else if (expect(".")) {
 				require("@identifier"), prop = lastrule.at(0);
-				prog.varpaths.at(vp).instr.push_back("memget USRTYPE_" + type + "_" + prop);
+				prog.varpaths.at(vp).instr.push_back({ "memget_prop", 0, "USRTYPE_" + type + "_" + prop });
 				type = getproptype(type, prop);
 			}
 			else
@@ -323,7 +323,12 @@ struct Parser : InputFile {
 	}
 	void show(const Prog::VarPath& vp, int id) const {
 		for (auto& in : vp.instr)
-			printf("%s%s\n", ind(id), in.c_str() );
+			if (in.cmd == "get" || in.cmd == "get_global" || in.cmd == "memget_prop")
+				printf("%s%s %s\n", ind(id), in.cmd.c_str(), in.sarg.c_str() );
+			else if (in.cmd == "memget_expr")
+				printf("%s%s\n", ind(id), in.cmd.c_str() ),
+				show( prog.exprs.at(in.iarg), id+1 );
+			else    printf("%s?? (%s)\n", ind(id+1), in.cmd.c_str() );
 	}
 	void show(const Prog::Expr& ex, int id) const {
 		for (auto& in : ex.instr)
