@@ -8,6 +8,7 @@ struct Prog {
 	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
+	struct Function     { string name; int block; };
 	struct Statement    { string type; int loc; };
 	struct Block        { vector<Statement> statements; };
 	struct Let          { string type; int varpath, expr; };
@@ -21,6 +22,7 @@ struct Prog {
 	string                    module;
 	vector<Prog::Type>        types;
 	vector<Prog::Dim>         globals;
+	vector<Prog::Function>    functions;
 	vector<string>            literals;  // temp
 	vector<Prog::Block>       blocks;
 	vector<Prog::Let>         lets;

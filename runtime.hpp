@@ -37,9 +37,14 @@ struct Runtime {
 			if (prog.types[i].name == name)  return i;
 		return -1;
 	}
-	const Prog::Type& typedesc(const string& name) const {
+	const Prog::Type& gettype(const string& name) const {
 		if (typeindex(name) == -1)  throw runtime_error("missing type: " + name);
 		return prog.types[typeindex(name)];
+	}
+	const Prog::Function getfunc(const string& name) const {
+		for (auto& fn : prog.functions)
+			if (fn.name == name)  return fn;
+		throw runtime_error("missing function: " + name);
 	}
 
 
@@ -71,7 +76,7 @@ struct Runtime {
 		else if (type == "string")            return memalloc("string", 0);
 		else if (Tokens::is_arraytype(type))  return memalloc(type, 0);
 		else if (typeindex(type) > -1) {
-			auto& t = typedesc(type);
+			auto& t = gettype(type);
 			int32_t off = 0,  ptr = memalloc( type, t.members.size() );
 			for (auto& m : t.members)
 				memget(ptr, off++) = make(m.type);
@@ -112,7 +117,7 @@ struct Runtime {
 			dpage.mem = spage.mem;
 		// objects
 		else if (typeindex(spage.type) > -1) {
-			auto& t = typedesc(spage.type);
+			auto& t = gettype(spage.type);
 			if (spage.mem.size() != t.members.size())
 				throw runtime_error("_clone: object: source memory does not match");
 			dpage.mem.resize(spage.mem.size(), 0);
@@ -139,7 +144,7 @@ struct Runtime {
 		// printf("unmaking %s\n", page.type.c_str() );
 		if (page.type == "int[]" || page.type == "string") ;
 		else if (typeindex(page.type) > -1) {
-			auto& t = typedesc(page.type);
+			auto& t = gettype(page.type);
 			for (int i = 0; i < t.members.size(); i++)
 				if (t.members[i].type != "int")
 					destroy(page.mem.at(i));
@@ -161,11 +166,12 @@ struct Runtime {
 
 // --- Main runtime ---
 
-	void run() {
+	int32_t run() {
 		init();
 		// run blocks in order
-		for (auto& bl : prog.blocks)
-			block(bl);
+		// for (auto& bl : prog.blocks)
+		// 	block(bl);
+		return function("main");
 	}
 	void init() {
 		for (auto& t : prog.types)    init_type(t);
@@ -180,7 +186,16 @@ struct Runtime {
 	}
 
 
+	// run function
+	int32_t function(const string& name) {
+		auto& fn = getfunc(name);
+		block(fn.block);
+		return 0;
+	}
+
+
 	// run statements
+	void block(int bl) { return block(prog.blocks.at(bl)); }
 	void block(const Prog::Block& bl) {
 		for (auto& st : bl.statements)
 			if      (st.type == "let")    let(st.loc);
