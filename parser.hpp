@@ -53,18 +53,18 @@ struct Parser : InputFile {
 
 	void p_type() {
 		require("type @identifier @endl");
-		string type, name, ctype = lastrule.at(0);
+		string type, btype, name, ctype = lastrule.at(0);
 		if (Tokens::is_keyword(ctype) || is_type(ctype) || is_global(ctype))
 			throw error("type name collision", ctype);
 		prog.types.push_back({ ctype });
 		// type members
 		while (!eof()) {
 			if      (expect("@endl"))                                  { nextline();  continue; }
-			else if (expect("dim @identifier @identifier @endl"))      type = lastrule.at(0), name = lastrule.at(1);
-			else if (expect("dim @identifier [ ] @identifier @endl"))  type = lastrule.at(0) + "[]", name = lastrule.at(1);
-			else if (expect("dim @identifier @endl"))                  type = "int", name = lastrule.at(0);
+			else if (expect("dim @identifier @identifier @endl"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
+			else if (expect("dim @identifier [ ] @identifier @endl"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
+			else if (expect("dim @identifier @endl"))                  type = btype = "int",  name = lastrule.at(0);
 			else    break;
-			if (Tokens::is_keyword(name) || is_type(name) || Tokens::is_keyword(type) || !is_type(type) || is_member(ctype, name))
+			if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype) || is_member(ctype, name))
 				throw error("type member collision", type + ":" + name);
 			prog.types.back().members.push_back({ name, type });  // save type member
 			nextline();
@@ -74,10 +74,10 @@ struct Parser : InputFile {
 
 	void p_dim() {
 		string type, btype, name;
-		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0), name = lastrule.at(1);
-		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0), type = btype + "[]", name = lastrule.at(1);
-		else if (require("dim @identifier"))                  type = btype = "int", name = lastrule.at(0);
-		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || Tokens::is_keyword(btype) || !is_type(btype))
+		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
+		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
+		else if (require("dim @identifier"))                  type = btype = "int",  name = lastrule.at(0);
+		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
 		prog.globals.push_back({ name, type });
 		// TODO: assign here

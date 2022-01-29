@@ -108,11 +108,11 @@ struct Runtime {
 		// TODO: is this memory safe?
 		auto& spage = heap.at(sptr);
 		auto& dpage = heap.at(dptr);
-		if (dpage.mem.size() != 0)  printf("WARNING: _clone: dptr is not empty\n");
+		if (dpage.mem.size() != 0)
+			throw runtime_error("_clone: dptr is not empty\n");
 		// linear memory
-		if (spage.type == "string" || spage.type == "int[]") {
+		if (spage.type == "string" || spage.type == "int[]")
 			dpage.mem = spage.mem;
-		}
 		// objects
 		else if (typeindex(spage.type) > -1) {
 			auto& t = prog.types.at( typeindex(spage.type) );  // get type descriptor

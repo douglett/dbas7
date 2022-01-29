@@ -1,11 +1,12 @@
 type mytype
 	dim i
-	# dim int[] a
+	dim int[] a
 end type
 
 dim mytype[] arr
 dim mytype[] arr2
 dim mytype t
+dim mytype t2
 
 block
 	t.i = 101
@@ -18,4 +19,11 @@ block
 
 	arr2 = arr
 	print "here 3" arr2[0].i
+
+	push(t.a, 123)
+	print "fart"  t.a[0]
+
+	t2 = t
+	t.a[0] = 400
+	print "fart 2"  t.a[0]  t2.a[0]
 end block
