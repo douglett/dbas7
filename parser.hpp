@@ -14,7 +14,7 @@ struct Parser : InputFile {
 	// parser results
 	Prog prog;
 	// parser state
-	int flag_mod = 0;
+	int flag_mod = 0, flag_func = -1;
 
 
 
@@ -31,10 +31,26 @@ struct Parser : InputFile {
 			if (prog.globals[i].name == name)  return 1;
 		return 0;
 	}
+	int is_local(const string& name) const {
+		if (flag_func <= -1)  return 0;
+		auto& fn = prog.functions.at(flag_func);
+		// TODO: arguments
+		for (int i = 0; i < fn.locals.size(); i++)
+			if (fn.locals[i].name == name)  return 1;
+		return 0;
+	}
 	int is_member(const string& type, const string& member) const {
 		for (auto& t : prog.types)
 			for (auto& m : t.members)
 				if (t.name == type && m.name == member)  return 1;
+		return 0;
+	}
+	int is_func(const string& fname) {
+		static vector<string> fn_internal = { "push", "pop", "len", "default" };
+		for (auto& n : fn_internal)
+			if (fname == n)  return 1;
+		for (auto& fn : prog.functions)
+			if (fn.name == fname)  return 1;
 		return 0;
 	}
 
@@ -57,7 +73,7 @@ struct Parser : InputFile {
 			if      (expect("@endl"))  nextline();
 			else if (section == "module"   && peek("module"))    p_module();
 			else if (section == "type"     && peek("type"))      p_type();
-			else if (section == "dim"      && peek("dim"))       p_dim();
+			else if (section == "dim"      && peek("dim"))       p_dim_global();
 			else if (section == "function" && peek("function"))  p_function();
 			else    break;
 	}
@@ -90,24 +106,55 @@ struct Parser : InputFile {
 		require("end type @endl"), nextline();
 	}
 
-	void p_dim() {
+	Prog::Dim p_dim() {
 		string type, btype, name;
 		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
 		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
 		else if (require("dim @identifier"))                  type = btype = "int",  name = lastrule.at(0);
-		if (Tokens::is_keyword(name) || is_type(name) || is_global(name) || !is_type(btype))
+		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
-		prog.globals.push_back({ name, type });
+		// prog.globals.push_back({ name, type });
+		return { name, type };
+	}
+
+	void p_dim_global() {
+		auto dim = p_dim();
+		if (is_global(dim.name))
+			throw error("global redefined", dim.name);
+		prog.globals.push_back(dim);
+		// TODO: assign here
+		require("@endl"), nextline();
+	}
+
+	void p_dim_local(int fn) {
+		auto dim = p_dim();
+		for (auto& l : prog.functions.at(fn).locals)
+			if (l.name == dim.name)
+				throw error("local redefined", dim.name);
+		prog.functions.at(fn).locals.push_back(dim);
 		// TODO: assign here
 		require("@endl"), nextline();
 	}
 
 	void p_function() {
 		require("function @identifier ( ) @endl");
-		prog.functions.push_back({ lastrule.at(0) });
+		auto fname = lastrule.at(0);
+		if (Tokens::is_keyword(fname) || is_global(fname) || is_func(fname))
+			throw error("function name collision", fname);
+		prog.functions.push_back({ fname });
 		int fn = prog.functions.size() - 1;
+		flag_func = fn;
+		prog.functions.at(fn).dsym = lno + 1;
+		// locals
+		while (!eof())
+			if      (expect("@endl"))  nextline();
+			else if (peek("dim"))      p_dim_local(fn);
+			else    break;
+		// parse block
 		prog.functions.at(fn).block = p_block();
+		// end
 		require("end function @endl"), nextline();
+		flag_func = -1;
 	}
 
 	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
@@ -168,8 +215,13 @@ struct Parser : InputFile {
 		require("@identifier");
 		prog.varpaths.push_back({ "<NULL>" });
 		int32_t vp = prog.varpaths.size() - 1,  ex = -1;
-		string global = lastrule.at(0), type = getglobaltype(global), prop;
-		prog.varpaths.at(vp).instr.push_back({ "get_global", 0, lastrule.at(0) });
+		string  type,  prop,  varname = lastrule.at(0);
+		if (is_local(varname))
+			type = getlocaltype(varname),
+			prog.varpaths.at(vp).instr.push_back({ "get", 0, varname });
+		else
+			type = getglobaltype(varname),
+			prog.varpaths.at(vp).instr.push_back({ "get_global", 0, varname });
 		// path chain
 		while (!eol())
 			if (expect("[")) {
@@ -197,6 +249,12 @@ struct Parser : InputFile {
 			if (g.name == name)  return g.type;
 		throw error("undefined global", name);
 	}
+	string getlocaltype(const string& name) const {
+		auto& fn = prog.functions.at(flag_func);
+		for (auto& d : fn.locals)
+			if (d.name == name)  return d.type;
+		throw error("undefined local", name);
+	}
 	string getproptype(const string& type, const string& prop) const {
 		for (auto& t : prog.types)
 			if (t.name == type)
@@ -212,8 +270,9 @@ struct Parser : InputFile {
 	int p_call() {
 		require("@identifier (");
 		string fname = lastrule.at(0);
-		prog.calls.push_back({ fname, {}, lno+1 });
+		prog.calls.push_back({ fname });
 		int ca = prog.calls.size() - 1;
+		prog.calls.at(ca).dsym = lno + 1;
 		// arguments
 		while (!eol() && !peek(")")) {
 			int ex = p_expr();
@@ -252,18 +311,18 @@ struct Parser : InputFile {
 	}
 
 	int p_callcheck_internal(const Prog::Call& ca) const {
+		using Tokens::is_arraytype;
+		using Tokens::basetype;
 		if (ca.fname == "push") {
-			// if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
-			if (ca.args.size() == 2 && Tokens::is_arraytype(ca.args[0].type) 
-				&& Tokens::basetype(ca.args[0].type) == ca.args[1].type)  return 1;
+			if (ca.args.size() == 2 && is_arraytype(ca.args[0].type) && basetype(ca.args[0].type) == ca.args[1].type)  return 1;
 			throw error("incorrect arguments");
 		}
 		else if (ca.fname == "pop") {
-			if (ca.args.size() == 1 && Tokens::is_arraytype(ca.args[0].type))  return 1;
+			if (ca.args.size() == 1 && is_arraytype(ca.args[0].type))  return 1;
 			throw error("incorrect argument");
 		}
 		else if (ca.fname == "len") {
-			if (ca.args.size() == 1 && (Tokens::is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
+			if (ca.args.size() == 1 && (is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
 			throw error("incorrect argument");
 		}
 		else if (ca.fname == "default") {

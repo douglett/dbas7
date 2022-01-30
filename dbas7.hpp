@@ -5,10 +5,9 @@ using namespace std;
 
 
 struct Prog {
-	struct Dim  { string name, type; };
-	struct Type { string name; vector<Dim> members; };
-	// struct Func { string name; map<string, Dim> args, locals; };
-	struct Function     { string name; int block; int dsym; };
+	struct Dim          { string name, type; };
+	struct Type         { string name; vector<Dim> members; };
+	struct Function     { string name; int block; vector<Dim> args, locals; int dsym; };
 	struct Statement    { string type; int loc; };
 	struct Block        { vector<Statement> statements; };
 	struct Let          { string type; int varpath, expr; };

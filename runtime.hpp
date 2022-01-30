@@ -12,7 +12,8 @@ struct Runtime {
 	// structs
 	struct MemPage { string type; vector<int32_t> mem; };
 	struct MemPtr  { int32_t ptr, off; string v; };
-	typedef  map<string, int32_t>  StackFrame;
+	struct Var     { string type; int32_t v; };
+	typedef  map<string, Var>  StackFrame;
 	// state
 	map<string, int32_t>           consts;
 	map<int32_t, MemPage>          heap;
@@ -56,13 +57,14 @@ struct Runtime {
 
 // --- Main memory ---
 
-	int32_t memalloc(string type, int32_t size) {
-		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
-		return memtop;
+	StackFrame& ftop() {
+		return fstack.at(fstack.size() - 1);
 	}
-	int32_t& get(string id, int isglobal=0) {
-		if (isglobal)  return globals.at(id);
-		else           return fstack.at(fstack.size() - 1).at(id);
+	int32_t& get(string id) {
+		return ftop().at(id).v;
+	}
+	int32_t& get_global(string id) {
+		return globals.at(id).v;
 	}
 	int32_t& memget(int32_t ptr, int32_t off) {
 		return heap.at(ptr).mem.at(off);
@@ -76,6 +78,10 @@ struct Runtime {
 	// void mempush(int32_t ptr, )
 
 	// heap memory make
+	int32_t memalloc(string type, int32_t size) {
+		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
+		return memtop;
+	}
 	int32_t make(const string& type) {
 		if      (type == "int")               return 0;
 		else if (type == "string")            return memalloc("string", 0);
@@ -176,7 +182,10 @@ struct Runtime {
 		// run blocks in order
 		// for (auto& bl : prog.blocks)
 		// 	block(bl);
-		return function("main");
+		// return function("main");
+
+		// TODO: internal call
+		return call({ "main" });
 	}
 	void init() {
 		for (auto& t : prog.types)    init_type(t);
@@ -187,15 +196,7 @@ struct Runtime {
 			consts["USRTYPE_" + t.name + "_" + t.members[i].name] = i;
 	}
 	void init_dim(const Prog::Dim& d) {
-		globals[d.name] = make(d.type);
-	}
-
-
-	// run function
-	int32_t function(const string& name) {
-		auto& fn = getfunc(name);
-		block(fn.block);
-		return 0;
+		globals[d.name] = { d.type, make(d.type) };
 	}
 
 
@@ -232,7 +233,18 @@ struct Runtime {
 	int32_t call(const Prog::Call& ca) {
 		if (funcindex(ca.fname) > -1) {
 			auto& fn = getfunc(ca.fname);
+			// new local stack
+			fstack.push_back({ });
+			// printf("WARNING: init local stack here\n");
+			for (auto& l : fn.locals)
+				if    (l.type == "int")  ftop()[l.name] = { l.type, 0 };
+				else  ftop()[l.name] = { l.type, make(l.type) };
+			// run main block
 			block(fn.block);
+			// destroy local stack
+			for (auto& var : ftop())
+				if (var.second.type != "int")  destroy(var.second.v);
+			fstack.pop_back();
 			return 0;
 		}
 		else  return call_internal(ca);
@@ -280,7 +292,7 @@ struct Runtime {
 		for (auto& in : vp.instr) {
 			// auto cmd = Strings::split(in);
 			if      (in.cmd == "get")          ptr = &get(in.sarg);
-			else if (in.cmd == "get_global")   ptr = &get(in.sarg, true);
+			else if (in.cmd == "get_global")   ptr = &get_global(in.sarg);
 			else if (ptr == NULL)              goto err;
 			// else if (cmd.at(0) == "memget")       ptr = &memget(*ptr, getnum(cmd.at(1)) );
 			else if (in.cmd == "memget_expr")  ptr = &memget(*ptr, expr(in.iarg) );
@@ -347,6 +359,6 @@ struct Runtime {
 			printf("    %s  %d\n", c.first.c_str(), c.second );
 		printf("  globals:\n");
 		for (auto& g : globals)
-			printf("    %-10s  %d\n", g.first.c_str(), g.second );
+			printf("    %-10s  %d\n", g.first.c_str(), g.second.v );
 	}
 };
