@@ -4,6 +4,7 @@
 #pragma once
 #include <vector>
 #include <map>
+#include <stdexcept>
 using namespace std;
 
 
@@ -30,8 +31,8 @@ struct Runtime {
 // --- Helpers ---
 
 	int32_t getnum(const string& num) const {
-		try                        { return stoi(num); }
-		catch (invalid_argument e) { return consts.at(num); }
+		try                         { return stoi(num); }
+		catch (invalid_argument& e) { return consts.at(num); }
 	}
 	int typeindex(const string& name) const {
 		for (int i = 0; i < prog.types.size(); i++)
@@ -353,7 +354,7 @@ struct Runtime {
 	void show() {
 		// printf("  heap:  %d\n", heap.size() );
 		// printf("  stack:  i.%d  s.%d\n", istack.size(), sstack.size() );
-		printf("  heap %d | istack %d | sstack %d\n", heap.size(), istack.size(), sstack.size() );
+		printf("  heap %d | istack %d | sstack %d\n", (int)heap.size(), (int)istack.size(), (int)sstack.size() );
 		printf("  consts:\n");
 		for (auto& c : consts)
 			printf("    %s  %d\n", c.first.c_str(), c.second );
