@@ -1,3 +1,8 @@
+type tt
+	dim i
+	dim string j
+end type
+
 dim i
 
 function test()

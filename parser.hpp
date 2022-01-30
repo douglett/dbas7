@@ -87,21 +87,20 @@ struct Parser : InputFile {
 
 	void p_type() {
 		require("type @identifier @endl");
-		string type, btype, name, ctype = lastrule.at(0);
+		string ctype = lastrule.at(0);
 		if (Tokens::is_keyword(ctype) || is_type(ctype) || is_global(ctype))
 			throw error("type name collision", ctype);
 		prog.types.push_back({ ctype });
 		// type members
-		while (!eof()) {
-			if      (expect("@endl"))                                  { nextline();  continue; }
-			else if (expect("dim @identifier @identifier @endl"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
-			else if (expect("dim @identifier [ ] @identifier @endl"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
-			else if (expect("dim @identifier @endl"))                  type = btype = "int",  name = lastrule.at(0);
+		Prog::Dim d;
+		while (!eof()) {	
+			if      (expect("@endl"))  { nextline();  continue; }
+			else if (peek("dim"))      d = p_dim();
 			else    break;
-			if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype) || is_member(ctype, name))
-				throw error("type member collision", type + ":" + name);
-			prog.types.back().members.push_back({ name, type });  // save type member
-			nextline();
+			if (is_member(ctype, d.name))
+				throw error("type member collision", d.type + ":" + d.name);
+			prog.types.back().members.push_back(d);  // save type member
+			require("@endl"), nextline();
 		}
 		require("end type @endl"), nextline();
 	}
