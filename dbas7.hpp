@@ -8,7 +8,7 @@ struct Prog {
 	struct Dim  { string name, type; };
 	struct Type { string name; vector<Dim> members; };
 	// struct Func { string name; map<string, Dim> args, locals; };
-	struct Function     { string name; int block; };
+	struct Function     { string name; int block; int dsym; };
 	struct Statement    { string type; int loc; };
 	struct Block        { vector<Statement> statements; };
 	struct Let          { string type; int varpath, expr; };
@@ -17,7 +17,7 @@ struct Prog {
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };
 	struct Argument     { string type; int expr; };
-	struct Call         { string fname; vector<Argument> args; };
+	struct Call         { string fname; vector<Argument> args; int dsym; };
 
 	string                    module;
 	vector<Prog::Type>        types;

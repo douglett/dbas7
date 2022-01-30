@@ -41,6 +41,11 @@ struct Runtime {
 		if (typeindex(name) == -1)  throw runtime_error("missing type: " + name);
 		return prog.types[typeindex(name)];
 	}
+	int funcindex(const string& name) const {
+		for (int i = 0; i < prog.functions.size(); i++)
+			if (prog.functions[i].name == name)  return i;
+		return -1;
+	}
 	const Prog::Function getfunc(const string& name) const {
 		for (auto& fn : prog.functions)
 			if (fn.name == name)  return fn;
@@ -225,6 +230,14 @@ struct Runtime {
 	// function calls
 	int32_t call(int ptr) { return call(prog.calls.at(ptr)); }
 	int32_t call(const Prog::Call& ca) {
+		if (funcindex(ca.fname) > -1) {
+			auto& fn = getfunc(ca.fname);
+			block(fn.block);
+			return 0;
+		}
+		else  return call_internal(ca);
+	}
+	int32_t call_internal(const Prog::Call& ca) {
 		// push array
 		if (ca.fname == "push") {
 			int32_t t = 0,  arrptr = expr(ca.args.at(0).expr),  val = expr(ca.args.at(1).expr);

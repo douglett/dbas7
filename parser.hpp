@@ -48,8 +48,8 @@ struct Parser : InputFile {
 		p_section("type");
 		p_section("dim");
 		p_section("function");
-		if (!eof())
-			throw error("unexpected command", currenttoken());
+		if (!eof())  throw error("unexpected command", currenttoken());
+		p_callcheck_all();
 	}
 
 	void p_section(const string& section) {
@@ -212,9 +212,9 @@ struct Parser : InputFile {
 	int p_call() {
 		require("@identifier (");
 		string fname = lastrule.at(0);
-		prog.calls.push_back({ fname });
+		prog.calls.push_back({ fname, {}, lno+1 });
 		int ca = prog.calls.size() - 1;
-
+		// arguments
 		while (!eol() && !peek(")")) {
 			int ex = p_expr();
 			prog.calls.at(ca).args.push_back({ prog.exprs.at(ex).type, ex });
@@ -222,8 +222,8 @@ struct Parser : InputFile {
 		}
 		require(")");
 		// type checking
-		if (!p_call_internal( prog.calls.at(ca) ))
-			throw error("unknown function", fname);
+		// if (!p_call_internal( prog.calls.at(ca) ))
+		// 	throw error("unknown function", fname);
 		return ca;
 	}
 	
@@ -235,7 +235,23 @@ struct Parser : InputFile {
 		return ca;
 	}
 
-	int p_call_internal(const Prog::Call& ca) {
+	int p_callcheck_all() const {
+		for (auto& ca : prog.calls)
+			p_callcheck(ca);
+		return 1;
+	}
+
+	int p_callcheck(const Prog::Call& ca) const {
+		if (p_callcheck_internal(ca))  return 1;
+		for (auto& fn : prog.functions)
+			if (fn.name == ca.fname) {
+				if (ca.args.size() != 0)  throw error("incorrect argument count, line " + to_string(ca.dsym));
+				return 1;
+			}
+		throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
+	}
+
+	int p_callcheck_internal(const Prog::Call& ca) const {
 		if (ca.fname == "push") {
 			// if (ca.args.size() != 2 || ca.args[0].type != "int[]" || ca.args[1].type != "int")
 			if (ca.args.size() == 2 && Tokens::is_arraytype(ca.args[0].type) 
