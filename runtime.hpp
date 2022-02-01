@@ -243,7 +243,7 @@ struct Runtime {
 			int ex = expr(ca.args[i].expr);  // run argument expression
 			// special case - strings
 			if (fn.args[i].type == "string") {
-				printf("WARNING: problem with string arguments\n");
+				// printf("WARNING: problem with string arguments\n");
 				ex = make_str(spop());  // new string by value
 			}
 			newframe[fn.args[i].name] = { fn.args[i].type, ex };  // push to stack
