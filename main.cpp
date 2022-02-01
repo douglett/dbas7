@@ -1,6 +1,7 @@
 #include "dbas7.hpp"
-#include "runtime.hpp"
+#include "debug.hpp"
 #include "parser.hpp"
+#include "runtime.hpp"
 using namespace std;
 
 
@@ -9,7 +10,8 @@ void test4() {
 	p.load("scripts/test4.bas");
 	printf("-----\n");
 	p.parse();
-	p.show();
+	// p.show();
+	Progshow(p.prog).show();
 	printf("-----\n");
 	
 	Runtime r;
@@ -31,7 +33,7 @@ void test5() {
 	p.load("scripts/scratch.bas");
 	printf("-----\n");
 	p.parse();
-	p.show();
+	Progshow(p.prog).show();
 	printf("-----\n");
 
 	Runtime r;

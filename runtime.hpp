@@ -232,25 +232,26 @@ struct Runtime {
 	// function calls
 	int32_t call(int ptr) { return call(prog.calls.at(ptr)); }
 	int32_t call(const Prog::Call& ca) {
-		if (funcindex(ca.fname) > -1) {
-			auto& fn = getfunc(ca.fname);
-			// new local stack
-			fstack.push_back({ });
-			// printf("WARNING: init local stack here\n");
-			for (auto& l : fn.locals)
-				if    (l.type == "int")  ftop()[l.name] = { l.type, 0 };
-				else  ftop()[l.name] = { l.type, make(l.type) };
-			// run main block
-			block(fn.block);
-			// destroy local stack
-			for (auto& var : ftop())
-				if (var.second.type != "int")  destroy(var.second.v);
-			fstack.pop_back();
-			return 0;
-		}
-		else  return call_internal(ca);
+		// if not user function, run internal function
+		if (funcindex(ca.fname) == -1)
+			return call_system(ca);
+		// run internal function
+		auto& fn = getfunc(ca.fname);
+		// create new local stack and assign variables
+		fstack.push_back({ });
+		for (auto& d : fn.args)
+			printf("todo: args (%s)\n", d.name.c_str() );
+		for (auto& d : fn.locals)
+			ftop()[d.name] = { d.type, make(d.type) };
+		// run main block
+		block(fn.block);
+		// destroy local stack
+		for (auto& var : ftop())
+			if (var.second.type != "int")  destroy(var.second.v);
+		fstack.pop_back();
+		return 0;
 	}
-	int32_t call_internal(const Prog::Call& ca) {
+	int32_t call_system(const Prog::Call& ca) {
 		// push array
 		if (ca.fname == "push") {
 			int32_t t = 0,  arrptr = expr(ca.args.at(0).expr),  val = expr(ca.args.at(1).expr);
@@ -258,7 +259,6 @@ struct Runtime {
 			if      (av.type == "int")     heap.at(arrptr).mem.push_back(val);
 			else if (av.type == "string")  t = make_str(spop()),  heap.at(arrptr).mem.push_back(t);
 			else    t = clone(val),  heap.at(arrptr).mem.push_back(t);
-			// else    throw runtime_error("can't push type: " + av.type);
 			return 0;
 		}
 		// pop array

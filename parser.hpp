@@ -46,8 +46,8 @@ struct Parser : InputFile {
 		return 0;
 	}
 	int is_func(const string& fname) {
-		static vector<string> fn_internal = { "push", "pop", "len", "default" };
-		for (auto& n : fn_internal)
+		static vector<string> fn_system = { "push", "pop", "len", "default" };
+		for (auto& n : fn_system)
 			if (fname == n)  return 1;
 		for (auto& fn : prog.functions)
 			if (fn.name == fname)  return 1;
@@ -95,7 +95,7 @@ struct Parser : InputFile {
 		Prog::Dim d;
 		while (!eof()) {	
 			if      (expect("@endl"))  { nextline();  continue; }
-			else if (peek("dim"))      d = p_dim();
+			else if (peek("dim"))      d = p_dim_start();
 			else    break;
 			if (is_member(ctype, d.name))
 				throw error("type member collision", d.type + ":" + d.name);
@@ -105,19 +105,18 @@ struct Parser : InputFile {
 		require("end type @endl"), nextline();
 	}
 
-	Prog::Dim p_dim() {
+	Prog::Dim p_dim_start() {
 		string type, btype, name;
 		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
 		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
 		else if (require("dim @identifier"))                  type = btype = "int",  name = lastrule.at(0);
 		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
-		// prog.globals.push_back({ name, type });
 		return { name, type };
 	}
 
 	void p_dim_global() {
-		auto dim = p_dim();
+		auto dim = p_dim_start();
 		if (is_global(dim.name))
 			throw error("global redefined", dim.name);
 		prog.globals.push_back(dim);
@@ -126,7 +125,7 @@ struct Parser : InputFile {
 	}
 
 	void p_dim_local(int fn) {
-		auto dim = p_dim();
+		auto dim = p_dim_start();
 		for (auto& l : prog.functions.at(fn).locals)
 			if (l.name == dim.name)
 				throw error("local redefined", dim.name);
@@ -136,20 +135,29 @@ struct Parser : InputFile {
 	}
 
 	void p_function() {
-		require("function @identifier ( ) @endl");
+		// function header start
+		require("function @identifier (");
 		auto fname = lastrule.at(0);
 		if (Tokens::is_keyword(fname) || is_global(fname) || is_func(fname))
 			throw error("function name collision", fname);
 		prog.functions.push_back({ fname });
 		int fn = prog.functions.size() - 1;
+		prog.functions.at(fn).dsym = lineno();
 		flag_func = fn;
-		prog.functions.at(fn).dsym = lno + 1;
+		// function arguments
+		while (!eol()) {
+			if (!expect("@identifier @identifier"))  break;  // expect short dim format
+			prog.functions.at(fn).args.push_back({ lastrule.at(1), lastrule.at(0) });  // save argument
+			if (!expect(","))  break;  // comma seperated arguments
+		}
+		// function header end
+		require(") @endl"), nextline();
 		// locals
 		while (!eof())
 			if      (expect("@endl"))  nextline();
 			else if (peek("dim"))      p_dim_local(fn);
 			else    break;
-		// parse block
+		// parse main block
 		prog.functions.at(fn).block = p_block();
 		// end
 		require("end function @endl"), nextline();
@@ -201,6 +209,7 @@ struct Parser : InputFile {
 			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr", to_string(ex) });
 			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", to_string(ex) });
 			else    throw error("unexpected type in print", eptr(ex).type);
+			expect(",");  // optional comma seperation
 		}
 		require("@endl"), nextline();
 		return pr;
@@ -271,7 +280,7 @@ struct Parser : InputFile {
 		string fname = lastrule.at(0);
 		prog.calls.push_back({ fname });
 		int ca = prog.calls.size() - 1;
-		prog.calls.at(ca).dsym = lno + 1;
+		prog.calls.at(ca).dsym = lineno();
 		// arguments
 		while (!eol() && !peek(")")) {
 			int ex = p_expr();
@@ -279,9 +288,6 @@ struct Parser : InputFile {
 			peek(")") || require(",");
 		}
 		require(")");
-		// type checking
-		// if (!p_call_internal( prog.calls.at(ca) ))
-		// 	throw error("unknown function", fname);
 		return ca;
 	}
 	
@@ -300,7 +306,9 @@ struct Parser : InputFile {
 	}
 
 	int p_callcheck(const Prog::Call& ca) const {
-		if (p_callcheck_internal(ca))  return 1;
+		// check system call arguments (if system)
+		if (p_callcheck_system(ca))  return 1;
+		// check user call arguments
 		for (auto& fn : prog.functions)
 			if (fn.name == ca.fname) {
 				if (ca.args.size() != 0)  throw error("incorrect argument count, line " + to_string(ca.dsym));
@@ -309,7 +317,7 @@ struct Parser : InputFile {
 		throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
 	}
 
-	int p_callcheck_internal(const Prog::Call& ca) const {
+	int p_callcheck_system(const Prog::Call& ca) const {
 		using Tokens::is_arraytype;
 		using Tokens::basetype;
 		if (ca.fname == "push") {
@@ -402,117 +410,4 @@ struct Parser : InputFile {
 		return prog.literals.size() - 1;
 	}
 
-
-
-// --- Show results ---
-
-	void show() const {
-		printf("<module>\n");
-		printf("%s%s\n", ind(1), prog.module.c_str() );
-		printf("\n");
-		printf("<literals>\n");
-		for (int i = 0; i < prog.literals.size(); i++)  show(prog.literals.at(i), i, 1);
-		printf("\n");
-		printf("<types>\n");
-		for (auto& t : prog.types)  show(t, 1);
-		printf("\n");
-		printf("<globals>\n");
-		for (auto& g : prog.globals)  show(g, 1);
-		// printf("\n");
-		// printf("<blocks>\n");
-		// for (int i = 0; i < prog.blocks.size(); i++)  show(prog.blocks.at(i), i, 0);
-		printf("\n");
-		printf("<functions>\n");
-		for (auto& fn : prog.functions)  show(fn, 0);
-	}
-	
-	void show(const string& s, int index, int id) const {
-		printf("%s%02d \"%s\"\n", ind(id), index, s.c_str() );
-	}
-	void show(const string& s, int id) const {
-		printf("%s\"%s\"\n", ind(id), s.c_str() );
-	}
-	
-	void show(const Prog::Type& t, int id) const {
-		printf("%stype %s\n", ind(id), t.name.c_str() );
-		for (auto& d : t.members)  show(d, id+1);
-	}
-	
-	void show(const Prog::Dim& d, int id) const {
-		printf("%s%s  %s\n", ind(id), d.type.c_str(), d.name.c_str());
-	}
-
-	void show(const Prog::Function& fn, int id) const {
-		printf("%sfunction %s\n", ind(id), fn.name.c_str() );
-		show(prog.blocks.at(fn.block), fn.block, id+1);
-	}
-	
-	void show(const Prog::Block& b, int index, int id) const {
-		printf("%sblock %d\n", ind(id), index );
-		for (auto& st : b.statements)  show(st, id+1);
-	}
-	
-	void show(const Prog::Statement& st, int id) const {
-		if      (st.type == "let")    show( prog.lets.at(st.loc), id );
-		else if (st.type == "print")  show( prog.prints.at(st.loc), id );
-		else if (st.type == "call")   show( prog.calls.at(st.loc), id );
-		else    printf("%s??\n", ind(id) );
-	}
-
-	void show(const Prog::Let& l, int id) const {
-		printf("%slet\n", ind(id) );
-			printf("%spath\n", ind(id+1) );
-				show( prog.varpaths.at(l.varpath), id+2 );
-			printf("%sexpr\n", ind(id+1) );
-				show( prog.exprs.at(l.expr), id+2 );
-		// printf("%s-->\n", ind(id+1) );
-	}
-
-	void show(const Prog::Print& pr, int id) const {
-		printf("%sprint\n", ind(id) );
-		for (auto& in : pr.instr) {
-			printf("%s%s\n", ind(id+1), in.first.c_str() );
-			if      (in.first == "literal")   show( prog.literals.at(stoi(in.second)), id+2 );
-			else if (in.first == "expr")      show( prog.exprs.at(stoi(in.second)), id+2 );
-			else if (in.first == "expr_str")  show( prog.exprs.at(stoi(in.second)), id+2 );
-			else    printf("%s?? (%s)\n", ind(id+2), in.first.c_str() );
-		}
-	}
-
-	void show(const Prog::VarPath& vp, int id) const {
-		for (auto& in : vp.instr)
-			if (in.cmd == "get" || in.cmd == "get_global" || in.cmd == "memget_prop")
-				printf("%s%s %s\n", ind(id), in.cmd.c_str(), in.sarg.c_str() );
-			else if (in.cmd == "memget_expr")
-				printf("%s%s\n", ind(id), in.cmd.c_str() ),
-				show( prog.exprs.at(in.iarg), id+1 );
-			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
-	}
-	
-	void show(const Prog::Expr& ex, int id) const {
-		for (auto& in : ex.instr)
-			if      (in.cmd == "i")    printf("%s%s %d\n", ind(id), in.cmd.c_str(), in.iarg );
-			else if (in.cmd == "lit")  show( prog.literals.at(in.iarg), id );
-			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
-				show( prog.varpaths.at(in.iarg), id );
-			else if (in.cmd == "call")
-				show( prog.calls.at(in.iarg), id );
-			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
-				printf("%s%s\n", ind(id), in.cmd.c_str() );
-			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
-	}
-	
-	void show(const Prog::Call& ca, int id) const {
-		printf("%scall %s\n", ind(id), ca.fname.c_str() );
-		for (auto& arg : ca.args) {
-			printf("%sexpr %s\n", ind(id+1), arg.type.c_str() );
-			show( prog.exprs.at(arg.expr), id+2 );
-			// printf("    ---\n");
-		}
-	}
-
-	const char* ind(int id) const {
-		static string s;
-		return s = string(id*3, ' '),  s.c_str();
-	}
-};
+};  // end Parser

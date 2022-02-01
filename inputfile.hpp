@@ -19,6 +19,7 @@ struct InputFile {
 	// state info
 	int eol(int off=0)    const { return pos + off >= tokens.size(); }
 	int eof()             const { return lno >= lines.size(); }
+	int lineno()          const { return lno + 1; }
 	string peekline()     const { return lno < lines.size() ? lines[lno] : "<EOF>"; }
 	string currenttoken() const { return eol() ? "<EOL>" : tokens.at(pos); }
 
@@ -28,7 +29,7 @@ struct InputFile {
 	// errors
 	runtime_error error(const string& err, const string& val="") const {
 		return runtime_error(
-			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lno + 1)
+			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lineno())
 			+ " near [" + currenttoken() + "]" );
 	}
 
