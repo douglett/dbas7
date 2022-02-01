@@ -104,10 +104,10 @@ struct Progshow {
 
 	void show_let(const Prog::Let& l, int id) {
 		outp() << ind(id) << "let\n";
-			outp() << ind(id+1) << "path\n";
-				show_varpath( prog.varpaths.at(l.varpath), id+2 );
-			outp() << ind(id+1) << "expr\n";
-				show_expr   ( prog.exprs.at(l.expr), id+2 );
+			// outp() << ind(id+1) << "path\n";
+			show_varpath( prog.varpaths.at(l.varpath), id+1 );
+			// outp() << ind(id+1) << "expr\n";
+			show_expr   ( prog.exprs.at(l.expr), id+1 );
 	}
 
 	void show_print(const Prog::Print& pr, int id) {
@@ -122,6 +122,8 @@ struct Progshow {
 	}
 
 	void show_varpath(const Prog::VarPath& vp, int id) {
+		outp() << ind(id) << "varpath (" << vp.type << ")\n";
+		id++;
 		for (auto& in : vp.instr)
 			if (in.cmd == "get" || in.cmd == "get_global" || in.cmd == "memget_prop")
 				outp() << ind(id) << in.cmd << " " << in.sarg << endl;
@@ -132,11 +134,16 @@ struct Progshow {
 	}
 
 	void show_expr(const Prog::Expr& ex, int id) {
+		outp() << ind(id) << "expr (" << ex.type << ")\n";
+		id++;
 		for (auto& in : ex.instr)
 			if      (in.cmd == "i")    outp() << ind(id) << in.cmd << " " << in.iarg << endl;
-			else if (in.cmd == "lit")  show_literal( prog.literals.at(in.iarg), id );
+			// else if (in.cmd == "lit")  show_literal( prog.literals.at(in.iarg), id );
+			else if (in.cmd == "lit")  outp() << ind(id) << "lit \"" << prog.literals.at(in.iarg) << "\"\n";
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
-				show_varpath( prog.varpaths.at(in.iarg), id );
+				outp() << ind(id) << in.cmd << endl,
+				show_varpath( prog.varpaths.at(in.iarg), id+1 );
+				// show_varpath( prog.varpaths.at(in.iarg), id );
 			else if (in.cmd == "call")
 				show_call   ( prog.calls.at(in.iarg), id );
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
@@ -146,10 +153,8 @@ struct Progshow {
 
 	void show_call(const Prog::Call& ca, int id) {
 		outp() << ind(id) << "call " << ca.fname << endl;
-		for (auto& arg : ca.args) {
-			outp() << ind(id+1) << "expr " << arg.type << endl;
-			show_expr( prog.exprs.at(arg.expr), id+2 );
-		}
+		for (auto& arg : ca.args)
+			show_expr( prog.exprs.at(arg.expr), id+1 );
 	}
 
 	const char* ind(int id) {

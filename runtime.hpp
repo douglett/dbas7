@@ -240,9 +240,13 @@ struct Runtime {
 		assert(fn.args.size() == ca.args.size());
 		for (int i = 0; i < fn.args.size(); i++) {
 			assert(fn.args[i].type == ca.args[i].type);  // basic errors
-			if (fn.args[i].type == "string")
+			int ex = expr(ca.args[i].expr);  // run argument expression
+			// special case - strings
+			if (fn.args[i].type == "string") {
 				printf("WARNING: problem with string arguments\n");
-			newframe[fn.args[i].name] = { fn.args[i].type, expr(ca.args[i].expr) };  // run argument expression
+				ex = make_str(spop());  // new string by value
+			}
+			newframe[fn.args[i].name] = { fn.args[i].type, ex };  // push to stack
 		}
 		// push new frame and calculate locals
 		fstack.push_back(newframe);  
@@ -253,6 +257,9 @@ struct Runtime {
 		// destroy local variables only in frame
 		for (auto& d : fn.locals)
 			if (d.type != "int")  destroy( get(d.name) );
+		// destroy argument strings
+		for (auto& d : fn.args)
+			if (d.type == "string")  destroy( get(d.name) );
 		fstack.pop_back();
 		return 0;
 	}
@@ -336,7 +343,13 @@ struct Runtime {
 			else if (in.cmd == "call")         ipush(call(in.iarg));
 			else    throw runtime_error("unknown expr: " + in.cmd);
 		// sanity check
-		if (istack.size() + sstack.size() != 1)  printf("WARNING: odd expression results\n");
+		if (istack.size() + sstack.size() != 1) {
+			printf("WARNING: odd expression results  i %d  s %d\n", (int)istack.size(), (int)sstack.size());
+			// for (int i = 0; i < istack.size(); i++)
+			// 	printf("  %02d  %d\n", i, istack[i] );
+			// for (int i = 0; i < sstack.size(); i++)
+			// 	printf("  %02d  %s\n", i, sstack[i].c_str() );
+		}
 		return istack.size() ? ipop() : 0;
 	}
 	// string expr_str(int ex) {
