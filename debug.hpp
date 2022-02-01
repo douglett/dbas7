@@ -14,6 +14,8 @@ struct Progshow {
 
 	Progshow(const Prog& _prog) : prog(_prog) { }
 
+	// int tofile(const string& fname)
+
 	void show() {
 		// module name
 		printf("<module>\n");

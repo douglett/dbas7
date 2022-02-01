@@ -34,7 +34,8 @@ struct Parser : InputFile {
 	int is_local(const string& name) const {
 		if (flag_func <= -1)  return 0;
 		auto& fn = prog.functions.at(flag_func);
-		// TODO: arguments
+		for (int i = 0; i < fn.args.size(); i++)
+			if (fn.args[i].name == name)  return 1;
 		for (int i = 0; i < fn.locals.size(); i++)
 			if (fn.locals[i].name == name)  return 1;
 		return 0;
@@ -92,15 +93,14 @@ struct Parser : InputFile {
 			throw error("type name collision", ctype);
 		prog.types.push_back({ ctype });
 		// type members
-		Prog::Dim d;
 		while (!eof()) {	
 			if      (expect("@endl"))  { nextline();  continue; }
-			else if (peek("dim"))      d = p_dim_start();
-			else    break;
+			else if (!peek("dim"))     { break; }
+			Prog::Dim d = p_dim_start();
 			if (is_member(ctype, d.name))
 				throw error("type member collision", d.type + ":" + d.name);
 			prog.types.back().members.push_back(d);  // save type member
-			require("@endl"), nextline();
+			require("@endl"), nextline();  // next member
 		}
 		require("end type @endl"), nextline();
 	}
@@ -124,12 +124,11 @@ struct Parser : InputFile {
 		require("@endl"), nextline();
 	}
 
-	void p_dim_local(int fn) {
+	void p_dim_local() {
 		auto dim = p_dim_start();
-		for (auto& l : prog.functions.at(fn).locals)
-			if (l.name == dim.name)
-				throw error("local redefined", dim.name);
-		prog.functions.at(fn).locals.push_back(dim);
+		if (is_local(dim.name))
+			throw error("local redefined", dim.name);
+		prog.functions.at(flag_func).locals.push_back(dim);
 		// TODO: assign here
 		require("@endl"), nextline();
 	}
@@ -155,7 +154,7 @@ struct Parser : InputFile {
 		// locals
 		while (!eof())
 			if      (expect("@endl"))  nextline();
-			else if (peek("dim"))      p_dim_local(fn);
+			else if (peek("dim"))      p_dim_local();
 			else    break;
 		// parse main block
 		prog.functions.at(fn).block = p_block();
@@ -259,9 +258,11 @@ struct Parser : InputFile {
 	}
 	string getlocaltype(const string& name) const {
 		auto& fn = prog.functions.at(flag_func);
+		for (auto& d : fn.args)
+			if (d.name == name)  return d.type;
 		for (auto& d : fn.locals)
 			if (d.name == name)  return d.type;
-		throw error("undefined local", name);
+		throw error("undefined argument or local", name);
 	}
 	string getproptype(const string& type, const string& prop) const {
 		for (auto& t : prog.types)
@@ -308,13 +309,26 @@ struct Parser : InputFile {
 	int p_callcheck(const Prog::Call& ca) const {
 		// check system call arguments (if system)
 		if (p_callcheck_system(ca))  return 1;
+		// check user function exists
+		if (getfuncindex(ca.fname) == -1)
+			throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
 		// check user call arguments
-		for (auto& fn : prog.functions)
-			if (fn.name == ca.fname) {
-				if (ca.args.size() != 0)  throw error("incorrect argument count, line " + to_string(ca.dsym));
-				return 1;
-			}
-		throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
+		auto& fn = prog.functions.at(getfuncindex(ca.fname));
+		if (ca.args.size() != fn.args.size())
+			throw error("incorrect argument count, line " + to_string(ca.dsym));
+		for (int i = 0; i < ca.args.size(); i++)
+			if (ca.args[i].type != fn.args[i].type)
+				throw error(string("incorrect argument type.")
+					+ " expected " + fn.args[i].type + "(" + to_string(i+1) + ")"
+					+ ", got " + ca.args[i].type
+					+ ", line " + to_string(ca.dsym));
+		// OK 
+		return 1;
+	}
+	int getfuncindex(const string& fname) const {
+		for (int i = 0; i < prog.functions.size(); i++)
+			if (prog.functions[i].name == fname)  return i;
+		return -1;
 	}
 
 	int p_callcheck_system(const Prog::Call& ca) const {

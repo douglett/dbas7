@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <stdexcept>
+#include <cassert>
 using namespace std;
 
 
@@ -113,8 +114,7 @@ struct Runtime {
 		_clone(sptr, dptr);
 	}
 	void clonestr(string s, int32_t dptr) {
-		if (heap.at(dptr).type != "string")
-			throw runtime_error("clonestr: dest not string");
+		assert(heap.at(dptr).type == "string");
 		heap.at(dptr).mem = {};
 		heap.at(dptr).mem.insert( heap.at(dptr).mem.end(), s.begin(), s.end() );
 	}
@@ -122,16 +122,14 @@ struct Runtime {
 		// TODO: is this memory safe?
 		auto& spage = heap.at(sptr);
 		auto& dpage = heap.at(dptr);
-		if (dpage.mem.size() != 0)
-			throw runtime_error("_clone: dptr is not empty\n");
+		assert(dpage.mem.size() > 0);
 		// linear memory
 		if (spage.type == "string" || spage.type == "int[]")
 			dpage.mem = spage.mem;
 		// objects
 		else if (typeindex(spage.type) > -1) {
 			auto& t = gettype(spage.type);
-			if (spage.mem.size() != t.members.size())
-				throw runtime_error("_clone: object: source memory does not match");
+			assert(spage.mem.size() == t.members.size());
 			dpage.mem.resize(spage.mem.size(), 0);
 			for (int i = 0; i < t.members.size(); i++)
 				if    (t.members[i].type == "int")  dpage.mem[i] = spage.mem[i];
@@ -235,19 +233,26 @@ struct Runtime {
 		// if not user function, run internal function
 		if (funcindex(ca.fname) == -1)
 			return call_system(ca);
-		// run internal function
+		// run user function
 		auto& fn = getfunc(ca.fname);
-		// create new local stack and assign variables
-		fstack.push_back({ });
-		for (auto& d : fn.args)
-			printf("todo: args (%s)\n", d.name.c_str() );
+		// calculate arguments in current frame context
+		StackFrame newframe;
+		assert(fn.args.size() == ca.args.size());
+		for (int i = 0; i < fn.args.size(); i++) {
+			assert(fn.args[i].type == ca.args[i].type);  // basic errors
+			if (fn.args[i].type == "string")
+				printf("WARNING: problem with string arguments\n");
+			newframe[fn.args[i].name] = { fn.args[i].type, expr(ca.args[i].expr) };  // run argument expression
+		}
+		// push new frame and calculate locals
+		fstack.push_back(newframe);  
 		for (auto& d : fn.locals)
 			ftop()[d.name] = { d.type, make(d.type) };
 		// run main block
 		block(fn.block);
-		// destroy local stack
-		for (auto& var : ftop())
-			if (var.second.type != "int")  destroy(var.second.v);
+		// destroy local variables only in frame
+		for (auto& d : fn.locals)
+			if (d.type != "int")  destroy( get(d.name) );
 		fstack.pop_back();
 		return 0;
 	}
