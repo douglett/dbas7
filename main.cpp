@@ -33,7 +33,8 @@ void test5() {
 	p.load("scripts/scratch.bas");
 	printf("-----\n");
 	p.parse();
-	Progshow(p.prog).show();
+	// Progshow(p.prog).show();
+	Progshow(p.prog).tofile("bin/prog.tree");
 	printf("-----\n");
 
 	Runtime r;

@@ -5,70 +5,86 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <fstream>
 #include "dbas7.hpp"
 using namespace std;
 
 
 struct Progshow {
 	const Prog& prog;
+	fstream fs;
 
 	Progshow(const Prog& _prog) : prog(_prog) { }
 
-	// int tofile(const string& fname)
+	ostream& outp() { return fs.is_open() ? fs : cout; }
+
+	int tofile(const string& fname) {
+		fs.open(fname, ios::out);
+		if (!fs.is_open()) {
+			fprintf(stderr, "could not open file: %s\n", fname.c_str());
+			cout.flush(), cerr.flush();
+			return 1;
+		}
+		show();
+		fs.close();
+		printf("wrote program output to: %s\n", fname.c_str());
+		return 0;
+	}
 
 	void show() {
 		// module name
-		printf("<module>\n");
-		printf("%s%s\n", ind(1), prog.module.c_str() );
+		outp() << "<module>\n";
+		outp() << ind(1) << prog.module << endl;
 		// all string literals
-		printf("\n<literals>\n");
+		outp() << "\n<literals>\n";
 		for (auto& s : prog.literals)
 			show_literal_index(s, 1);
 		// types
-		printf("\n<types>\n");
+		outp() << "\n<types>\n";
 		for (auto& t : prog.types)
 			show_type(t, 1);
 		// globals
-		printf("\n<globals>\n");
+		outp() << "\n<globals>\n";
 		for (auto& g : prog.globals)
 			show_dim(g, 1);
 		// functions
-		printf("\n<functions>\n");
+		outp() << "\n<functions>\n";
 		for (auto& fn : prog.functions)
-			printf("\n"), show_function(fn, 0);
+			outp() << "\n",  show_function(fn, 0);
 	}
 
 	void show_literal(const string& s, int id) {
-		printf("%s\"%s\"\n", ind(id), s.c_str() );
+		outp() << ind(id) << "\"" << s << "\"\n";
 	}
 	void show_literal_index(const string& s, int id) {
 		int index = &s - &prog.literals[0];
-		printf("%s%02d \"%s\"\n", ind(id), index, s.c_str() );
+		outp() << ind(id) << setfill('0')<<setw(2)<<index << " \"" << s << "\"\n";
 	}
 
 	void show_type(const Prog::Type& t, int id) {
-		printf("%stype %s\n", ind(id), t.name.c_str() );
+		outp() << ind(id) << "type " << t.name << endl;
 		for (auto& d : t.members)
 			show_dim(d, id+1);
 	}
 
 	void show_dim(const Prog::Dim& d, int id) {
-		printf("%s%s  %s\n", ind(id), d.type.c_str(), d.name.c_str());
+		outp() << ind(id) << d.type << "  " << d.name << endl;
 	}
 
 	void show_function(const Prog::Function& fn, int id) {
-		printf("%sfunction %s\n", ind(id), fn.name.c_str() );
-		printf("%sargs\n", ind(id+1) );
+		outp() << ind(id) << "function " << fn.name << endl;
+		outp() << ind(id+1) << "args\n";
 		for (auto& d : fn.args)
 			show_dim(d, id+2);
-		printf("%slocals\n", ind(id+1) );
+		outp() << ind(id+1) << "locals\n";
 		for (auto& d : fn.locals)
 			show_dim(d, id+2);
 		show_block(prog.blocks.at(fn.block), id+1);
 	}
 
 	void show_block(const Prog::Block& b, int id) {
-		printf("%sblock\n", ind(id) );
+		outp() << ind(id) << "block\n";
 		for (auto& st : b.statements)
 			show_statement(st, id+1);
 	}
@@ -83,58 +99,56 @@ struct Progshow {
 		if      (st.type == "let")    show_let  ( prog.lets.at(st.loc), id );
 		else if (st.type == "print")  show_print( prog.prints.at(st.loc), id );
 		else if (st.type == "call")   show_call ( prog.calls.at(st.loc), id );
-		else    printf("%s??\n", ind(id) );
+		else    outp() << ind(id) << "??\n";
 	}
 
 	void show_let(const Prog::Let& l, int id) {
-		printf("%slet\n", ind(id) );
-			printf("%spath\n", ind(id+1) );
+		outp() << ind(id) << "let\n";
+			outp() << ind(id+1) << "path\n";
 				show_varpath( prog.varpaths.at(l.varpath), id+2 );
-			printf("%sexpr\n", ind(id+1) );
+			outp() << ind(id+1) << "expr\n";
 				show_expr   ( prog.exprs.at(l.expr), id+2 );
-		// printf("%s-->\n", ind(id+1) );
 	}
 
 	void show_print(const Prog::Print& pr, int id) {
-		printf("%sprint\n", ind(id) );
+		outp() << ind(id) << "print\n";
 		for (auto& in : pr.instr) {
-			printf("%s%s\n", ind(id+1), in.first.c_str() );
+			outp() << ind(id+1) << in.first << endl;
 			if      (in.first == "literal")   show_literal( prog.literals.at(stoi(in.second)), id+2 );
 			else if (in.first == "expr")      show_expr   ( prog.exprs.at(stoi(in.second)), id+2 );
 			else if (in.first == "expr_str")  show_expr   ( prog.exprs.at(stoi(in.second)), id+2 );
-			else    printf("%s?? (%s)\n", ind(id+2), in.first.c_str() );
+			else    outp() << ind(id) << "?? (" << in.first << ")\n";
 		}
 	}
 
 	void show_varpath(const Prog::VarPath& vp, int id) {
 		for (auto& in : vp.instr)
 			if (in.cmd == "get" || in.cmd == "get_global" || in.cmd == "memget_prop")
-				printf("%s%s %s\n", ind(id), in.cmd.c_str(), in.sarg.c_str() );
+				outp() << ind(id) << in.cmd << " " << in.sarg << endl;
 			else if (in.cmd == "memget_expr")
-				printf("%s%s\n", ind(id), in.cmd.c_str() ),
+				outp() << ind(id) << in.cmd << endl,
 				show_expr( prog.exprs.at(in.iarg), id+1 );
-			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
+			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
 	}
 
 	void show_expr(const Prog::Expr& ex, int id) {
 		for (auto& in : ex.instr)
-			if      (in.cmd == "i")    printf("%s%s %d\n", ind(id), in.cmd.c_str(), in.iarg );
+			if      (in.cmd == "i")    outp() << ind(id) << in.cmd << " " << in.iarg << endl;
 			else if (in.cmd == "lit")  show_literal( prog.literals.at(in.iarg), id );
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str" || in.cmd == "varpath_ptr")
 				show_varpath( prog.varpaths.at(in.iarg), id );
 			else if (in.cmd == "call")
 				show_call   ( prog.calls.at(in.iarg), id );
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
-				printf("%s%s\n", ind(id), in.cmd.c_str() );
-			else    printf("%s?? (%s)\n", ind(id), in.cmd.c_str() );
+				outp() << ind(id) << in.cmd << endl;
+			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
 	}
 
 	void show_call(const Prog::Call& ca, int id) {
-		printf("%scall %s\n", ind(id), ca.fname.c_str() );
+		outp() << ind(id) << "call " << ca.fname << endl;
 		for (auto& arg : ca.args) {
-			printf("%sexpr %s\n", ind(id+1), arg.type.c_str() );
+			outp() << ind(id+1) << "expr " << arg.type << endl;
 			show_expr( prog.exprs.at(arg.expr), id+2 );
-			// printf("    ---\n");
 		}
 	}
 
