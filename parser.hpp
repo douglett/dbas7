@@ -163,25 +163,68 @@ struct Parser : InputFile {
 		flag_func = -1;
 	}
 
+
+
+// --- Block parsing ---
+
 	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
-	// void p_block0() {
-	// 	require("block @endl");
-	// 	p_block();
-	// 	require("end block @endl"), nextline();
-	// }
 	int p_block() {
 		prog.blocks.push_back({});
 		int bl = prog.blocks.size() - 1;
 		while (!eof())
 			if      (expect("@endl"))         nextline();
-			else if (peek("end"))             break;
+			else if (peek("end"))             break;  // end all control blocks
+			// else if (peek("else"))            break;  // end if-sub-block
+			// I/O
 			else if (peek("print"))           bptr(bl).statements.push_back({ "print",  p_print() });
+			// else if (peek("input"))           bptr(bl).statements.push_back({ });
+			// control blocks
+			// else if (peek("if"))         p_if();
+			// else if (peek("while"))      p_while();
+			// else if (peek("for"))        p_for();
+			// control
+			else if (peek("return"))          bptr(bl).statements.push_back({ "return",  p_return() });
+			// else if (peek("break"))      p_break();
+			// else if (peek("continue"))   p_continue();
+			// expressions
 			else if (peek("let"))             bptr(bl).statements.push_back({ "let",    p_let() });
 			else if (peek("call"))            bptr(bl).statements.push_back({ "call",   p_call_stmt() });
 			else if (peek("@identifier ("))   bptr(bl).statements.push_back({ "call",   p_call_stmt() });
 			else if (peek("@identifier"))     bptr(bl).statements.push_back({ "let",    p_let() });
 			else    throw error("unexpected block statement", currenttoken());
 		return bl;
+	}
+	// void p_block0() {
+	// 	require("block @endl");
+	// 	p_block();
+	// 	require("end block @endl"), nextline();
+	// }
+
+
+
+// --- Block statements ---
+
+	int p_print() {
+		require("print");
+		prog.prints.push_back({});
+		int pr = prog.prints.size() - 1;
+		while (!eol()) {
+			int ex = p_expr();
+			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr", to_string(ex) });
+			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", to_string(ex) });
+			else    throw error("unexpected type in print", eptr(ex).type);
+			expect(",");  // optional comma seperation
+		}
+		require("@endl"), nextline();
+		return pr;
+	}
+
+	int p_return() {
+		require("return");
+		int ex = -1;  // default: no expression
+		if (!peek("@endl"))  ex = p_expr();
+		require("@endl"), nextline();
+		return ex;
 	}
 
 	int p_let() {
@@ -197,21 +240,6 @@ struct Parser : InputFile {
 		prog.lets.at(let).expr = p_expr( dest_type );
 		require("@endl"), nextline();
 		return let;
-	}
-
-	int p_print() {
-		require("print");
-		prog.prints.push_back({});
-		int pr = prog.prints.size() - 1;
-		while (!eol()) {
-			int ex = p_expr();
-			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr", to_string(ex) });
-			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", to_string(ex) });
-			else    throw error("unexpected type in print", eptr(ex).type);
-			expect(",");  // optional comma seperation
-		}
-		require("@endl"), nextline();
-		return pr;
 	}
 
 

@@ -16,6 +16,10 @@ struct Runtime {
 	struct MemPtr  { int32_t ptr, off; string v; };
 	struct Var     { string type; int32_t v; };
 	typedef  map<string, Var>  StackFrame;
+	// errors
+	// struct DBRunError : runtime_error {};
+	struct ctrl_exception : exception { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
+	struct ctrl_return : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	// state
 	map<string, int32_t>           consts;
 	map<int32_t, MemPage>          heap;
@@ -203,10 +207,25 @@ struct Runtime {
 	void block(int bl) { return block(prog.blocks.at(bl)); }
 	void block(const Prog::Block& bl) {
 		for (auto& st : bl.statements)
-			if      (st.type == "let")    let(st.loc);
-			else if (st.type == "print")  print(st.loc);
-			else if (st.type == "call")   call(st.loc);
+			if      (st.type == "print")     r_print(st.loc);
+			else if (st.type == "return")    r_return(st.loc);
+			else if (st.type == "let")       let(st.loc);
+			else if (st.type == "call")      call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
+	}
+	void r_print(int pr) { return r_print(prog.prints.at(pr)); }
+	void r_print(const Prog::Print& pr) {
+		for (auto& in : pr.instr)
+			if      (in.first == "literal")   printf("%s ", Strings::deliteral(in.second).c_str() );
+			else if (in.first == "expr")      printf("%d ", expr(getnum(in.second)) );
+			else if (in.first == "expr_str")  expr(getnum(in.second)),  printf("%s ", spop().c_str() );
+			else    throw runtime_error("unknown print: " + in.first);
+		printf("\n");
+	}
+	void r_return(int ex) {
+		int32_t rval = 0;
+		if (ex > -1)  rval = expr(ex);
+		throw ctrl_return(rval);
 	}
 	void let(int l) { return let(prog.lets.at(l)); }
 	void let(const Prog::Let& l) {
@@ -215,15 +234,6 @@ struct Runtime {
 		if      (l.type == "int")     vp = ex;
 		else if (l.type == "string")  clonestr(spop(), vp);
 		else if (vp != ex)            cloneto(ex, vp);
-	}
-	void print(int pr) { return print(prog.prints.at(pr)); }
-	void print(const Prog::Print& pr) {
-		for (auto& in : pr.instr)
-			if      (in.first == "literal")   printf("%s ", Strings::deliteral(in.second).c_str() );
-			else if (in.first == "expr")      printf("%d ", expr(getnum(in.second)) );
-			else if (in.first == "expr_str")  expr(getnum(in.second)),  printf("%s ", spop().c_str() );
-			else    throw runtime_error("unknown print: " + in.first);
-		printf("\n");
 	}
 
 
@@ -253,7 +263,9 @@ struct Runtime {
 		for (auto& d : fn.locals)
 			ftop()[d.name] = { d.type, make(d.type) };
 		// run main block
-		block(fn.block);
+		int32_t rval = 0;
+		try { block(fn.block); }
+		catch (ctrl_return& r) { rval = r.val; }
 		// destroy local variables only in frame
 		for (auto& d : fn.locals)
 			if (d.type != "int")  destroy( get(d.name) );
@@ -261,7 +273,7 @@ struct Runtime {
 		for (auto& d : fn.args)
 			if (d.type == "string")  destroy( get(d.name) );
 		fstack.pop_back();
-		return 0;
+		return rval;
 	}
 	int32_t call_system(const Prog::Call& ca) {
 		// push array
