@@ -209,6 +209,7 @@ struct Runtime {
 		for (auto& st : bl.statements)
 			if      (st.type == "print")     r_print(st.loc);
 			else if (st.type == "return")    r_return(st.loc);
+			else if (st.type == "if")        r_if(st.loc);
 			else if (st.type == "let")       let(st.loc);
 			else if (st.type == "call")      call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
@@ -226,6 +227,15 @@ struct Runtime {
 		int32_t rval = 0;
 		if (ex > -1)  rval = expr(ex);
 		throw ctrl_return(rval);
+	}
+	void r_if(int iptr) {
+		const auto& ip = prog.ifs.at(iptr);
+		for (auto& cond : ip.conds)
+			// run block on empty OR truthy condition
+			if (cond.expr == -1 || expr(cond.expr)) {
+				block(cond.block);
+				break;
+			}
 	}
 	void let(int l) { return let(prog.lets.at(l)); }
 	void let(const Prog::Let& l) {

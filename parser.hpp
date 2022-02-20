@@ -167,33 +167,35 @@ struct Parser : InputFile {
 
 // --- Block parsing ---
 
-	Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
 	int p_block() {
 		prog.blocks.push_back({});
 		int bl = prog.blocks.size() - 1;
 		while (!eof())
 			if      (expect("@endl"))         nextline();
 			else if (peek("end"))             break;  // end all control blocks
-			// else if (peek("else"))            break;  // end if-sub-block
+			else if (peek("else"))            break;  // end if-sub-block
 			// I/O
-			else if (peek("print"))           bptr(bl).statements.push_back({ "print",  p_print() });
-			// else if (peek("input"))           bptr(bl).statements.push_back({ });
+			else if (peek("print"))           add_stmt(bl, { "print",  p_print() });
+			// else if (peek("input"))           add_stmt(bl, { });
 			// control blocks
-			// else if (peek("if"))         p_if();
+			else if (peek("if"))              add_stmt(bl, { "if",     p_if() });
 			// else if (peek("while"))      p_while();
 			// else if (peek("for"))        p_for();
 			// control
-			else if (peek("return"))          bptr(bl).statements.push_back({ "return",  p_return() });
+			else if (peek("return"))          add_stmt(bl, { "return",  p_return() });
 			// else if (peek("break"))      p_break();
 			// else if (peek("continue"))   p_continue();
 			// expressions
-			else if (peek("let"))             bptr(bl).statements.push_back({ "let",    p_let() });
-			else if (peek("call"))            bptr(bl).statements.push_back({ "call",   p_call_stmt() });
-			else if (peek("@identifier ("))   bptr(bl).statements.push_back({ "call",   p_call_stmt() });
-			else if (peek("@identifier"))     bptr(bl).statements.push_back({ "let",    p_let() });
+			else if (peek("let"))             add_stmt(bl, { "let",    p_let() });
+			else if (peek("call"))            add_stmt(bl, { "call",   p_call_stmt() });
+			else if (peek("@identifier ("))   add_stmt(bl, { "call",   p_call_stmt() });
+			else if (peek("@identifier"))     add_stmt(bl, { "let",    p_let() });
 			else    throw error("unexpected block statement", currenttoken());
 		return bl;
 	}
+	// block helpers
+	void add_stmt(int ptr, const Prog::Statement& st) { prog.blocks.at(ptr).statements.push_back(st); }
+	// Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
 	// void p_block0() {
 	// 	require("block @endl");
 	// 	p_block();
@@ -218,6 +220,36 @@ struct Parser : InputFile {
 		require("@endl"), nextline();
 		return pr;
 	}
+
+	int p_if() {
+		require("if");
+		prog.ifs.push_back({ });
+		int i = prog.ifs.size() - 1;
+		// if condition
+		add_cond(i),
+			last_cond(i).expr = p_expr(),
+			require("@endl"), nextline(),
+			last_cond(i).block = p_block();
+		// else-if condition
+		while (expect("else if"))
+			add_cond(i),
+			last_cond(i).expr = p_expr(),
+			require("@endl"), nextline(),
+			last_cond(i).block = p_block();
+		// else condition
+		if (expect("else"))
+			require("@endl"), nextline(),
+			add_cond(i),
+			last_cond(i).expr  = -1,  // empty condition - always run
+			last_cond(i).block = p_block();
+		// end if
+		require("end if @endl"), nextline();
+		return i;
+	}
+	// if helpers
+	// Prog::If& iptr(int ptr) { return prog.ifs.at(ptr); }
+	void             add_cond (int ptr) { prog.ifs.at(ptr).conds.push_back({ -1, -1 }); }
+	Prog::Condition& last_cond(int ptr) { auto& c = prog.ifs.at(ptr).conds;  return c.at(c.size() - 1); }
 
 	int p_return() {
 		require("return");
@@ -400,6 +432,10 @@ struct Parser : InputFile {
 		p_expr_add(ex);
 		return ex;
 	}
+	// int p_expr_true() {
+	// 	prog.exprs.push_back({ "int", {{ "i", 1 }} });
+	// 	return prog.exprs.size() - 1;
+	// }
 
 	void p_expr_add(int ex) {
 		p_expr_atom(ex);

@@ -10,8 +10,10 @@ struct Prog {
 	struct Function     { string name; int block; vector<Dim> args, locals; int dsym; };
 	struct Statement    { string type; int loc; };
 	struct Block        { vector<Statement> statements; };
-	struct Let          { string type; int varpath, expr; };
 	struct Print        { vector<pair<string, string>> instr; };
+	struct Condition    { int expr; int block; };
+	struct If           { vector<Condition> conds; };
+	struct Let          { string type; int varpath, expr; };
 	struct Instruction  { string cmd; int32_t iarg; string sarg; };
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };
@@ -24,8 +26,9 @@ struct Prog {
 	vector<Prog::Function>    functions;
 	vector<string>            literals;  // temp
 	vector<Prog::Block>       blocks;
-	vector<Prog::Let>         lets;
 	vector<Prog::Print>       prints;
+	vector<Prog::If>          ifs;
+	vector<Prog::Let>         lets;
 	vector<Prog::VarPath>     varpaths;
 	vector<Prog::Expr>        exprs;
 	vector<Prog::Call>        calls;

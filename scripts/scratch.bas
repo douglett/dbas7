@@ -8,10 +8,13 @@ function test5(int i)
 end function
 
 function main()
-	dim string s
-	s = "fart 1"
-	test4(s)
-	test4("fart 2")
-	print s
-	print test5(10)
+	print "butt"
+	if 0
+		print "yes"
+	else if 0
+		print "yes2"
+	else
+		print "no"
+	end if
+	print "fart"
 end function
