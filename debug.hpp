@@ -113,10 +113,31 @@ struct Progshow {
 	// }
 
 	void show_statement(const Prog::Statement& st, int id) {
-		if      (st.type == "let")    show_let  ( prog.lets.at(st.loc), id );
-		else if (st.type == "print")  show_print( prog.prints.at(st.loc), id );
-		else if (st.type == "call")   show_call ( prog.calls.at(st.loc), id );
-		else    outp() << ind(id) << "??\n";
+		if      (st.type == "print")    show_print ( prog.prints.at(st.loc), id );
+		else if (st.type == "if")       show_if    ( prog.ifs.at(st.loc), id );
+		else if (st.type == "return")   show_return( st.loc, id );
+		else if (st.type == "let")      show_let   ( prog.lets.at(st.loc), id );
+		else if (st.type == "call")     show_call  ( prog.calls.at(st.loc), id );
+		else    outp() << ind(id) << "?? (" << st.type << ")\n";
+	}
+
+	void show_if(const Prog::If& ii, int id) {
+		outp() << ind(id) << "if\n";
+		for (auto& cond : ii.conds)
+			if (cond.expr > -1) {
+				outp() << ind(id+1) << "condition\n";
+				show_expr( prog.exprs.at(cond.expr), id+2 );
+				show_block( prog.blocks.at(cond.block), id+2 );
+			}
+			else {
+				// outp() << ind(id+1) << "else\n";
+				show_block( prog.blocks.at(cond.block), id+1 );
+			}
+	}
+
+	void show_return(int ex, int id) {
+		outp() << ind(id) << "return\n";
+		if (ex > -1)  show_expr( prog.exprs.at(ex), id+1 );
 	}
 
 	void show_let(const Prog::Let& l, int id) {

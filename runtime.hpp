@@ -204,8 +204,8 @@ struct Runtime {
 
 
 	// run statements
-	void block(int bl) { return block(prog.blocks.at(bl)); }
-	void block(const Prog::Block& bl) {
+	void block(int bptr) {
+		const Prog::Block& bl = prog.blocks.at(bptr);
 		for (auto& st : bl.statements)
 			if      (st.type == "print")     r_print(st.loc);
 			else if (st.type == "return")    r_return(st.loc);
@@ -214,8 +214,8 @@ struct Runtime {
 			else if (st.type == "call")      call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
 	}
-	void r_print(int pr) { return r_print(prog.prints.at(pr)); }
-	void r_print(const Prog::Print& pr) {
+	void r_print(int pptr) {
+		const Prog::Print& pr = prog.prints.at(pptr);
 		for (auto& in : pr.instr)
 			if      (in.first == "literal")   printf("%s ", Strings::deliteral(in.second).c_str() );
 			else if (in.first == "expr")      printf("%d ", expr(getnum(in.second)) );
@@ -237,8 +237,8 @@ struct Runtime {
 				break;
 			}
 	}
-	void let(int l) { return let(prog.lets.at(l)); }
-	void let(const Prog::Let& l) {
+	void let(int lptr) {
+		const Prog::Let& l = prog.lets.at(lptr);
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
 		if      (l.type == "int")     vp = ex;
@@ -321,8 +321,8 @@ struct Runtime {
 
 
 	// variable path parsing
-	int32_t& varpath(int vp) { return varpath(prog.varpaths.at(vp)); }
-	int32_t& varpath(const Prog::VarPath& vp) {
+	int32_t& varpath(int vptr) {
+		const Prog::VarPath& vp = prog.varpaths.at(vptr);
 		int32_t* ptr = NULL;
 		for (auto& in : vp.instr) {
 			// auto cmd = Strings::split(in);
@@ -345,8 +345,8 @@ struct Runtime {
 
 
 	// expression parsing
-	int32_t expr(int ex) { return expr(prog.exprs.at(ex)); }
-	int32_t expr(const Prog::Expr& ex) {
+	int32_t expr(int eptr) {
+		const Prog::Expr& ex = prog.exprs.at(eptr);
 		// istack = {}, sstack = {};
 		int32_t t = 0;
 		string s;
