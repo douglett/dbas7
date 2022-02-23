@@ -10,6 +10,8 @@
 
 
 struct InputFile {
+	struct parse_error : runtime_error { using runtime_error::runtime_error; };
+
 	// typedef  InputPattern::Results  Results;
 	vector<string> lines, tokens;
 	string lasttok;
@@ -27,8 +29,8 @@ struct InputFile {
 	int nextline() { return lno++, tokenizeline(); }
 
 	// errors
-	runtime_error error(const string& err, const string& val="") const {
-		return runtime_error(
+	parse_error error(const string& err, const string& val="") const {
+		return parse_error(
 			err + (val.length() ? " [" + val + "]" : "") + " . line " + to_string(lineno())
 			+ " near [" + currenttoken() + "]" );
 	}
@@ -142,8 +144,10 @@ struct InputFile {
 		int off = 0;
 		vector<string> vs;
 		for (const auto& rule : Strings::split(ruleset))
-			if      (rule.at(0) == '@' && peekp(rule.substr(1), off))  off++, vs.push_back(lasttok);
-			else if (rule.at(0) != '@' && peekt(rule, off))  off++;
+			if      (rule.at(0) == '@' && peekp(rule.substr(1), off))  off++, vs.push_back(lasttok);  // token rule match
+			// TODO: is this a good symbol choice (backtick)?
+			else if (rule.at(0) == '`' && peekt(rule.substr(1), off))  off++, vs.push_back(lasttok);  // basic match (save)
+			else if (rule.at(0) != '@' && peekt(rule, off))  off++;                                   // basic match (don't save - default)
 			else    return 0;
 		lastrule = vs;
 		return off;

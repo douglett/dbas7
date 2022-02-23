@@ -20,7 +20,7 @@ struct Runtime {
 	// struct DBRunError : runtime_error {};
 	struct ctrl_exception : exception      { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
 	struct ctrl_return    : ctrl_exception { using ctrl_exception::ctrl_exception; };
-	// struct ctrl_break     : ctrl_exception { using ctrl_exception::ctrl_exception; };
+	struct ctrl_break     : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	// struct ctrl_continue  : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	// state
 	map<string, int32_t>           consts;
@@ -208,8 +208,10 @@ struct Runtime {
 			else if (st.type == "while")       r_while(st.loc);
 			// else if (st.type == "for")
 			// control
-			else if (st.type == "return")      r_return(st.loc);
-			// else if (st.type == "break")
+			else if (st.type == "return")      throw ctrl_return( st.loc > -1 ? expr(st.loc) : 0 );  // return (rval: expr OR default(0))
+			else if (st.type == "break")       throw ctrl_break(st.loc);  // break-loop (arg: break level)
+			// else if (st.type == "return")      r_return(st.loc);
+			// else if (st.type == "break")       r_break(st.loc);
 			// else if (st.type == "continue")
 			// expressions
 			else if (st.type == "let")         let(st.loc);
@@ -246,17 +248,26 @@ struct Runtime {
 	}
 	void r_while(int ptr) {
 		const auto& wh = prog.whiles.at(ptr);
-		// try {
-			while ( expr(wh.expr) )
+		while ( expr(wh.expr) )
+			try {
 				block(wh.block);
-		// }
-		// TODO: break
+			}
+			catch (ctrl_break& brk) {
+				if (brk.val != 1)
+					throw runtime_error("TODO: implement break levels");
+				break;
+			}
 	}
-	void r_return(int ex) {
-		int32_t rval = 0;
-		if (ex > -1)  rval = expr(ex);
-		throw ctrl_return(rval);
-	}
+	// void r_return(int ex) {
+	// 	int32_t rval = 0;
+	// 	if (ex > -1)  rval = expr(ex);
+	// 	throw ctrl_return(rval);
+	// }
+	// void r_break(int lvl) {
+	// 	if (lvl != 1)
+	// 		throw runtime_error("TODO: implement break levels");
+	// 	throw ctrl_break
+	// }
 	void let(int ptr) {
 		const Prog::Let& l = prog.lets.at(ptr);
 		int32_t  ex = expr(l.expr);
@@ -360,7 +371,7 @@ struct Runtime {
 	int32_t expr(int eptr) {
 		const Prog::Expr& ex = prog.exprs.at(eptr);
 		// istack = {}, sstack = {};
-		int32_t t = 0;
+		int32_t t = 0, u = 0;
 		string s;
 		for (auto& in : ex.instr)
 			// integers
@@ -368,6 +379,8 @@ struct Runtime {
 			else if (in.cmd == "varpath")      ipush( varpath(in.iarg) );
 			else if (in.cmd == "add")          t = ipop(),  ipeek() += t;
 			else if (in.cmd == "sub")          t = ipop(),  ipeek() -= t;
+			else if (in.cmd == "eq")           t = ipop(),  u = ipop(),  ipush(u == t);
+			else if (in.cmd == "neq")          t = ipop(),  u = ipop(),  ipush(u != t);
 			// strings
 			else if (in.cmd == "lit")          spush(in.iarg);
 			else if (in.cmd == "varpath_str")  spush(varpath_str(in.iarg));

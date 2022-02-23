@@ -14,7 +14,7 @@ struct Parser : InputFile {
 	// parser results
 	Prog prog;
 	// parser state
-	int flag_mod = 0, flag_func = -1;
+	int flag_mod = 0, flag_func = -1, flag_loop = 0;
 
 
 
@@ -183,7 +183,7 @@ struct Parser : InputFile {
 			// else if (peek("for"))        p_for();
 			// control
 			else if (peek("return"))          add_stmt(bl, { "return",     p_return() });
-			// else if (peek("break"))      p_break();
+			else if (peek("break"))           add_stmt(bl, { "break",      p_break() });
 			// else if (peek("continue"))        add_stmt(bl, { "continue",   p_continue();
 			// expressions
 			else if (peek("let"))             add_stmt(bl, { "let",        p_let() });
@@ -269,10 +269,12 @@ struct Parser : InputFile {
 		require("while");
 		prog.whiles.push_back({});
 		int w = prog.whiles.size() - 1;
+		flag_loop++;                              // increment loop control flag (for tracking valid break / continue)
 		prog.whiles.at(w).expr = p_expr();        // while-true condition
 		require("@endl"), nextline();
 		prog.whiles.at(w).block = p_block();      // main block
 		require("end while @endl"), nextline();   // block end
+		flag_loop--;                              // decrement loop control flag
 		return w;
 	}
 
@@ -282,6 +284,20 @@ struct Parser : InputFile {
 		if (!peek("@endl"))  ex = p_expr();
 		require("@endl"), nextline();
 		return ex;
+	}
+
+	int p_break() {
+		require("break");
+		if (!flag_loop)
+			throw error("break outside of loop");
+		int level = 1;
+		if (expect("@integer")) {
+			level = stoi(lastrule.at(0));
+			if (level > flag_loop)
+				throw error("break level out-of-bounds", lastrule.at(0));
+		}
+		require("@endl"), nextline();
+		return level;
 	}
 
 	int p_let() {
@@ -451,27 +467,39 @@ struct Parser : InputFile {
 	int p_expr() {
 		prog.exprs.push_back({ "<NULL>" });
 		int ex = prog.exprs.size() - 1;
-		p_expr_add(ex);
+		p_expr_compare(ex);
 		return ex;
 	}
-	// int p_expr_true() {
-	// 	prog.exprs.push_back({ "int", {{ "i", 1 }} });
-	// 	return prog.exprs.size() - 1;
-	// }
+	
+	void p_expr_compare(int ex) {
+		p_expr_add(ex);
+		auto type = eptr(ex).type;
+		if (expect("`= `=") || expect("`! `=")) {
+			if (type != "int" && type != "string")    throw error("cannot compare type", type);
+			string opcode, op = Strings::join(lastrule, "");
+			// figure out thr proper opcode using type + operator
+			if      (type == "int" && op == "==")  opcode = "eq";
+			else if (type == "int" && op == "!=")  opcode = "neq";
+			else  throw error("cannot do comparison on type", type + " : " + op);
+			// printf("opcode: %s  %s\n", op.c_str(), opcode.c_str() );
+			p_expr_add(ex);
+			if (type != eptr(ex).type)                throw error("compare type mismatch");
+			eptr(ex).instr.push_back({ opcode });
+		}
+	}
 
 	void p_expr_add(int ex) {
 		p_expr_atom(ex);
 		auto type = eptr(ex).type;
-		if (type != "int" && type != "string")  return;
-		while (peek("+") || peek("-")) {
-			string op = currenttoken();
-			expect("+") || expect("-");
+		while (expect("+") || expect("-")) {
+			if (type != "int" && type != "string")    throw error("cannot add type", type);
+			string op = lasttok;
 			p_expr_atom(ex);
-			if      (type != eptr(ex).type)                throw error("add type mismatch");
-			else if (type == "int"    && op == "+")  eptr(ex).instr.push_back({ "add" });
-			else if (type == "int"    && op == "-")  eptr(ex).instr.push_back({ "sub" });
-			else if (type == "string" && op == "+")  eptr(ex).instr.push_back({ "strcat" });
-			else if (type == "string" && op == "-")  throw error("cannot subtract strings");
+			if      (type != eptr(ex).type)           throw error("add type mismatch");
+			else if (type == "int"    && op == "+")   eptr(ex).instr.push_back({ "add" });
+			else if (type == "int"    && op == "-")   eptr(ex).instr.push_back({ "sub" });
+			else if (type == "string" && op == "+")   eptr(ex).instr.push_back({ "strcat" });
+			else if (type == "string" && op == "-")   throw error("cannot subtract strings");
 			else    throw error("unexpected add expression");
 		}
 	}

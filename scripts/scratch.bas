@@ -25,8 +25,14 @@ end function
 function main()
 	dim i
 	i = 10
+	if i == 1
+		print "here"
+	end if
 	while i
 		print "fart", i
 		i = i - 1
+		if i == 4
+			break
+		end if
 	end while
 end function

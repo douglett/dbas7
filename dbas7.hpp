@@ -85,12 +85,12 @@ namespace Strings {
 		if (s.length())  vs.push_back(s);
 		return vs;
 	}
-	// string join(const vector<string>& vs, const string& glue=" ") {
-	// 	string str;
-	// 	for (int i = 0; i < vs.size(); i++)
-	// 		str += (i > 0 ? glue : "") + vs[i];
-	// 	return str;
-	// }
+	string join(const vector<string>& vs, const string& glue=" ") {
+		string str;
+		for (int i = 0; i < vs.size(); i++)
+			str += (i > 0 ? glue : "") + vs[i];
+		return str;
+	}
 	// string chomp(const string& s) {
 	// 	int i = 0, j = s.length() - 1;
 	// 	for ( ; i < s.length(); i++)

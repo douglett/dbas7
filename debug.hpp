@@ -187,7 +187,7 @@ struct Progshow {
 				show_varpath_head( prog.varpaths.at(in.iarg), id+1 );
 			else if (in.cmd == "call")
 				show_call   ( prog.calls.at(in.iarg), id );
-			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "strcat")
+			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "eq" || in.cmd == "neq" || in.cmd == "strcat")
 				outp() << ind(id) << in.cmd << endl;
 			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
 	}
