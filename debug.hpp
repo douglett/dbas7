@@ -151,11 +151,11 @@ struct Progshow {
 	void show_print(const Prog::Print& pr, int id) {
 		outp() << ind(id) << "print\n";
 		for (auto& in : pr.instr) {
-			outp() << ind(id+1) << in.first << endl;
-			if      (in.first == "literal")   show_literal( prog.literals.at(stoi(in.second)), id+2 );
-			else if (in.first == "expr")      show_expr   ( prog.exprs.at(stoi(in.second)), id+2 );
-			else if (in.first == "expr_str")  show_expr   ( prog.exprs.at(stoi(in.second)), id+2 );
-			else    outp() << ind(id) << "?? (" << in.first << ")\n";
+			outp() << ind(id+1) << in.cmd << endl;
+			if      (in.cmd == "literal")   show_literal( prog.literals.at(in.iarg), id+2 );
+			else if (in.cmd == "expr")      show_expr   ( prog.exprs.at   (in.iarg), id+2 );
+			else if (in.cmd == "expr_str")  show_expr   ( prog.exprs.at   (in.iarg), id+2 );
+			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
 		}
 	}
 

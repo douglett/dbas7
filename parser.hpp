@@ -176,7 +176,7 @@ struct Parser : InputFile {
 			else if (peek("else"))            break;  // end if-sub-block
 			// I/O
 			else if (peek("print"))           add_stmt(bl, { "print",  p_print() });
-			// else if (peek("input"))           add_stmt(bl, { });
+			else if (peek("input"))           add_stmt(bl, { "input",  p_input() });
 			// control blocks
 			else if (peek("if"))              add_stmt(bl, { "if",     p_if() });
 			// else if (peek("while"))      p_while();
@@ -212,13 +212,28 @@ struct Parser : InputFile {
 		int pr = prog.prints.size() - 1;
 		while (!eol()) {
 			int ex = p_expr();
-			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr", to_string(ex) });
-			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", to_string(ex) });
+			if      (eptr(ex).type == "int")     prog.prints.at(pr).instr.push_back({ "expr",     ex });
+			else if (eptr(ex).type == "string")  prog.prints.at(pr).instr.push_back({ "expr_str", ex });
 			else    throw error("unexpected type in print", eptr(ex).type);
-			expect(",");  // optional comma seperation
+			// whitespace seperators
+			if      (expect(","))  prog.prints.at(pr).instr.push_back({ "literal", p_addliteral(" ")  });
+			// else if (expect(";"))  prog.prints.at(pr).instr.push_back({ "literal", p_addliteral("\t") });
 		}
 		require("@endl"), nextline();
 		return pr;
+	}
+
+	int p_input() {
+		require("input");
+		prog.inputs.push_back({ "> " });
+		int in = prog.inputs.size()-1;
+		// TODO: string expression in prompt
+		if (expect("@literal"))
+			prog.inputs.at(in).prompt = Strings::deliteral( lastrule.at(0) ),
+			require(",");
+		prog.inputs.at(in).varpath = p_varpath();
+		require("@endl"), nextline();
+		return in;
 	}
 
 	int p_if() {
@@ -480,7 +495,18 @@ struct Parser : InputFile {
 
 	int p_literal() {
 		require("@literal");
-		auto lit = Strings::deliteral( lastrule.at(0) );
+		// auto lit = Strings::deliteral( lastrule.at(0) );
+		// // de-duplicate
+		// for (int i = 0; i < prog.literals.size(); i++)
+		// 	if (prog.literals[i] == lit)  return i;
+		// prog.literals.push_back(lit);
+		// return prog.literals.size() - 1;
+		return p_addliteral( lastrule.at(0) );
+	}
+
+	// TODO: better name for this?
+	int p_addliteral(const string& s) {
+		auto lit = Strings::deliteral( s );
 		// de-duplicate
 		for (int i = 0; i < prog.literals.size(); i++)
 			if (prog.literals[i] == lit)  return i;

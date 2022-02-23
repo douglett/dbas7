@@ -78,10 +78,6 @@ struct Runtime {
 	int32_t memsize(int32_t ptr) const {
 		return heap.at(ptr).mem.size();
 	}
-	// void memresize(int32_t ptr, int32_t size) const {
-	// 	heap.at(ptr).mem.resize()
-	// }
-	// void mempush(int32_t ptr, )
 
 	// heap memory make
 	int32_t memalloc(string type, int32_t size) {
@@ -182,11 +178,6 @@ struct Runtime {
 
 	int32_t run() {
 		init();
-		// run blocks in order
-		// for (auto& bl : prog.blocks)
-		// 	block(bl);
-		// return function("main");
-
 		// TODO: internal call
 		return call({ "main" });
 	}
@@ -203,33 +194,47 @@ struct Runtime {
 	}
 
 
-	// run statements
+	// run block
 	void block(int bptr) {
 		const Prog::Block& bl = prog.blocks.at(bptr);
 		for (auto& st : bl.statements)
+			// I/O
 			if      (st.type == "print")     r_print(st.loc);
-			else if (st.type == "return")    r_return(st.loc);
+			else if (st.type == "input")     r_input(st.loc);
+			// control blocks
 			else if (st.type == "if")        r_if(st.loc);
+			// else if (st.type == "while")
+			// else if (st.type == "for")
+			// control
+			else if (st.type == "return")    r_return(st.loc);
+			// else if (st.type == "break")
+			// else if (st.type == "continue")
+			// expressions
 			else if (st.type == "let")       let(st.loc);
 			else if (st.type == "call")      call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
 	}
-	void r_print(int pptr) {
-		const Prog::Print& pr = prog.prints.at(pptr);
+
+
+	// run block statements
+	void r_print(int ptr) {
+		const Prog::Print& pr = prog.prints.at(ptr);
 		for (auto& in : pr.instr)
-			if      (in.first == "literal")   printf("%s ", Strings::deliteral(in.second).c_str() );
-			else if (in.first == "expr")      printf("%d ", expr(getnum(in.second)) );
-			else if (in.first == "expr_str")  expr(getnum(in.second)),  printf("%s ", spop().c_str() );
-			else    throw runtime_error("unknown print: " + in.first);
+			if      (in.cmd == "literal")   printf("%s", prog.literals.at(in.iarg).c_str() );
+			else if (in.cmd == "expr")      printf("%d", expr(in.iarg) );
+			else if (in.cmd == "expr_str")  expr(in.iarg),  printf("%s", spop().c_str() );
+			else    throw runtime_error("unknown print: " + in.cmd);
 		printf("\n");
 	}
-	void r_return(int ex) {
-		int32_t rval = 0;
-		if (ex > -1)  rval = expr(ex);
-		throw ctrl_return(rval);
+	void r_input(int ptr) {
+		const Prog::Input& in = prog.inputs.at(ptr);
+		printf("%s", in.prompt.c_str() );
+		string s;
+		getline(cin, s);
+		clonestr( s, varpath(in.varpath) );
 	}
-	void r_if(int iptr) {
-		const auto& ip = prog.ifs.at(iptr);
+	void r_if(int ptr) {
+		const auto& ip = prog.ifs.at(ptr);
 		for (auto& cond : ip.conds)
 			// run block on empty OR truthy condition
 			if (cond.expr == -1 || expr(cond.expr)) {
@@ -237,8 +242,13 @@ struct Runtime {
 				break;
 			}
 	}
-	void let(int lptr) {
-		const Prog::Let& l = prog.lets.at(lptr);
+	void r_return(int ex) {
+		int32_t rval = 0;
+		if (ex > -1)  rval = expr(ex);
+		throw ctrl_return(rval);
+	}
+	void let(int ptr) {
+		const Prog::Let& l = prog.lets.at(ptr);
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
 		if      (l.type == "int")     vp = ex;
@@ -253,20 +263,15 @@ struct Runtime {
 		// if not user function, run internal function
 		if (funcindex(ca.fname) == -1)
 			return call_system(ca);
-		// run user function
-		auto& fn = getfunc(ca.fname);
 		// calculate arguments in current frame context
-		StackFrame newframe;
-		assert(fn.args.size() == ca.args.size());
+		auto& fn = getfunc(ca.fname);                                   // get user function def
+		StackFrame newframe;                                            // new stack frame
+		assert( fn.args.size() == ca.args.size() );                     // basic arguments error
 		for (int i = 0; i < fn.args.size(); i++) {
-			assert(fn.args[i].type == ca.args[i].type);  // basic errors
-			int ex = expr(ca.args[i].expr);  // run argument expression
-			// special case - strings
-			if (fn.args[i].type == "string") {
-				// printf("WARNING: problem with string arguments\n");
-				ex = make_str(spop());  // new string by value
-			}
-			newframe[fn.args[i].name] = { fn.args[i].type, ex };  // push to stack
+			assert( fn.args[i].type == ca.args[i].type );               // basic argument error
+			int32_t ex = expr(ca.args[i].expr);                         // run argument expression
+			if (fn.args[i].type == "string")  ex = make_str(spop());    // new string by value
+			newframe[fn.args[i].name] = { fn.args[i].type, ex };        // push to stack
 		}
 		// push new frame and calculate locals
 		fstack.push_back(newframe);  
@@ -276,13 +281,12 @@ struct Runtime {
 		int32_t rval = 0;
 		try { block(fn.block); }
 		catch (ctrl_return& r) { rval = r.val; }
-		// destroy local variables only in frame
+		// cleanup
 		for (auto& d : fn.locals)
-			if (d.type != "int")  destroy( get(d.name) );
-		// destroy argument strings
+			if (d.type != "int")  destroy( get(d.name) );      // destroy local variables only in frame
 		for (auto& d : fn.args)
-			if (d.type == "string")  destroy( get(d.name) );
-		fstack.pop_back();
+			if (d.type == "string")  destroy( get(d.name) );   // destroy argument strings (pass-by-value)
+		fstack.pop_back();                                     // destroy stack frame
 		return rval;
 	}
 	int32_t call_system(const Prog::Call& ca) {
@@ -325,11 +329,9 @@ struct Runtime {
 		const Prog::VarPath& vp = prog.varpaths.at(vptr);
 		int32_t* ptr = NULL;
 		for (auto& in : vp.instr) {
-			// auto cmd = Strings::split(in);
 			if      (in.cmd == "get")          ptr = &get(in.sarg);
 			else if (in.cmd == "get_global")   ptr = &get_global(in.sarg);
 			else if (ptr == NULL)              goto err;
-			// else if (cmd.at(0) == "memget")       ptr = &memget(*ptr, getnum(cmd.at(1)) );
 			else if (in.cmd == "memget_expr")  ptr = &memget(*ptr, expr(in.iarg) );
 			else if (in.cmd == "memget_prop")  ptr = &memget(*ptr, getnum(in.sarg) );
 			else    throw runtime_error("unknown varpath: " + in.cmd);
@@ -338,8 +340,8 @@ struct Runtime {
 		return *ptr;
 		err:  throw out_of_range("memget ptr is null");
 	}
-	string varpath_str(int vp) {
-		const auto& mem = heap.at( varpath(vp) ).mem;
+	string varpath_str(int vptr) {
+		const auto& mem = heap.at( varpath(vptr) ).mem;
 		return string(mem.begin(), mem.end());
 	}
 

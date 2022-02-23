@@ -8,6 +8,7 @@ function test5(int i)
 end function
 
 function main()
+	dim string s
 	print "butt"
 	if 0
 		print "yes"
@@ -17,4 +18,6 @@ function main()
 		print "no"
 	end if
 	print "fart"
+	input  s
+	print "you typed '" s "'"
 end function
