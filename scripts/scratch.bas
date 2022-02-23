@@ -7,7 +7,7 @@ function test5(int i)
 	return i+i
 end function
 
-function main()
+function test6()
 	dim string s
 	print "butt"
 	if 0
@@ -20,4 +20,13 @@ function main()
 	print "fart"
 	input  s
 	print "you typed '" s "'"
+end function
+
+function main()
+	dim i
+	i = 10
+	while i
+		print "fart", i
+		i = i - 1
+	end while
 end function

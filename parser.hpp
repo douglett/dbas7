@@ -175,21 +175,21 @@ struct Parser : InputFile {
 			else if (peek("end"))             break;  // end all control blocks
 			else if (peek("else"))            break;  // end if-sub-block
 			// I/O
-			else if (peek("print"))           add_stmt(bl, { "print",  p_print() });
-			else if (peek("input"))           add_stmt(bl, { "input",  p_input() });
+			else if (peek("print"))           add_stmt(bl, { "print",      p_print() });
+			else if (peek("input"))           add_stmt(bl, { "input",      p_input() });
 			// control blocks
-			else if (peek("if"))              add_stmt(bl, { "if",     p_if() });
-			// else if (peek("while"))      p_while();
+			else if (peek("if"))              add_stmt(bl, { "if",         p_if() });
+			else if (peek("while"))           add_stmt(bl, { "while",      p_while() });
 			// else if (peek("for"))        p_for();
 			// control
-			else if (peek("return"))          add_stmt(bl, { "return",  p_return() });
+			else if (peek("return"))          add_stmt(bl, { "return",     p_return() });
 			// else if (peek("break"))      p_break();
-			// else if (peek("continue"))   p_continue();
+			// else if (peek("continue"))        add_stmt(bl, { "continue",   p_continue();
 			// expressions
-			else if (peek("let"))             add_stmt(bl, { "let",    p_let() });
-			else if (peek("call"))            add_stmt(bl, { "call",   p_call_stmt() });
-			else if (peek("@identifier ("))   add_stmt(bl, { "call",   p_call_stmt() });
-			else if (peek("@identifier"))     add_stmt(bl, { "let",    p_let() });
+			else if (peek("let"))             add_stmt(bl, { "let",        p_let() });
+			else if (peek("call"))            add_stmt(bl, { "call",       p_call_stmt() });
+			else if (peek("@identifier ("))   add_stmt(bl, { "call",       p_call_stmt() });
+			else if (peek("@identifier"))     add_stmt(bl, { "let",        p_let() });
 			else    throw error("unexpected block statement", currenttoken());
 		return bl;
 	}
@@ -262,9 +262,19 @@ struct Parser : InputFile {
 		return i;
 	}
 	// if helpers
-	// Prog::If& iptr(int ptr) { return prog.ifs.at(ptr); }
 	void             add_cond (int ptr) { prog.ifs.at(ptr).conds.push_back({ -1, -1 }); }
 	Prog::Condition& last_cond(int ptr) { auto& c = prog.ifs.at(ptr).conds;  return c.at(c.size() - 1); }
+
+	int p_while() {
+		require("while");
+		prog.whiles.push_back({});
+		int w = prog.whiles.size() - 1;
+		prog.whiles.at(w).expr = p_expr();        // while-true condition
+		require("@endl"), nextline();
+		prog.whiles.at(w).block = p_block();      // main block
+		require("end while @endl"), nextline();   // block end
+		return w;
+	}
 
 	int p_return() {
 		require("return");
@@ -275,16 +285,13 @@ struct Parser : InputFile {
 	}
 
 	int p_let() {
-		// require("let");
-		expect("let");  // optional
+		expect("let");                                          // keyword is optional
 		prog.lets.push_back({ "<NULL>", -1, -1 });
 		int let = prog.lets.size() - 1;
-		// dest varpath
-		int vp = prog.lets.at(let).varpath = p_varpath();
+		int vp = prog.lets.at(let).varpath = p_varpath();       // dest varpath
 		string dest_type = prog.lets.at(let).type = prog.varpaths.at(vp).type;
 		require("=");
-		// src varpath
-		prog.lets.at(let).expr = p_expr( dest_type );
+		prog.lets.at(let).expr = p_expr( dest_type );           // src varpath
 		require("@endl"), nextline();
 		return let;
 	}

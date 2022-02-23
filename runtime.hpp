@@ -18,8 +18,10 @@ struct Runtime {
 	typedef  map<string, Var>  StackFrame;
 	// errors
 	// struct DBRunError : runtime_error {};
-	struct ctrl_exception : exception { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
-	struct ctrl_return : ctrl_exception { using ctrl_exception::ctrl_exception; };
+	struct ctrl_exception : exception      { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
+	struct ctrl_return    : ctrl_exception { using ctrl_exception::ctrl_exception; };
+	// struct ctrl_break     : ctrl_exception { using ctrl_exception::ctrl_exception; };
+	// struct ctrl_continue  : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	// state
 	map<string, int32_t>           consts;
 	map<int32_t, MemPage>          heap;
@@ -199,19 +201,19 @@ struct Runtime {
 		const Prog::Block& bl = prog.blocks.at(bptr);
 		for (auto& st : bl.statements)
 			// I/O
-			if      (st.type == "print")     r_print(st.loc);
-			else if (st.type == "input")     r_input(st.loc);
+			if      (st.type == "print")       r_print(st.loc);
+			else if (st.type == "input")       r_input(st.loc);
 			// control blocks
-			else if (st.type == "if")        r_if(st.loc);
-			// else if (st.type == "while")
+			else if (st.type == "if")          r_if(st.loc);
+			else if (st.type == "while")       r_while(st.loc);
 			// else if (st.type == "for")
 			// control
-			else if (st.type == "return")    r_return(st.loc);
+			else if (st.type == "return")      r_return(st.loc);
 			// else if (st.type == "break")
 			// else if (st.type == "continue")
 			// expressions
-			else if (st.type == "let")       let(st.loc);
-			else if (st.type == "call")      call(st.loc);
+			else if (st.type == "let")         let(st.loc);
+			else if (st.type == "call")        call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
 	}
 
@@ -241,6 +243,14 @@ struct Runtime {
 				block(cond.block);
 				break;
 			}
+	}
+	void r_while(int ptr) {
+		const auto& wh = prog.whiles.at(ptr);
+		// try {
+			while ( expr(wh.expr) )
+				block(wh.block);
+		// }
+		// TODO: break
 	}
 	void r_return(int ex) {
 		int32_t rval = 0;

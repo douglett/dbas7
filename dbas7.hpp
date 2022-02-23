@@ -15,6 +15,7 @@ struct Prog {
 	struct Input        { string prompt; int varpath; };
 	struct Condition    { int expr; int block; };
 	struct If           { vector<Condition> conds; };
+	struct While        { int expr; int block; };
 	struct Let          { string type; int varpath, expr; };
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };
@@ -30,6 +31,7 @@ struct Prog {
 	vector<Prog::Print>       prints;
 	vector<Prog::Input>       inputs;
 	vector<Prog::If>          ifs;
+	vector<Prog::While>       whiles;
 	vector<Prog::Let>         lets;
 	vector<Prog::VarPath>     varpaths;
 	vector<Prog::Expr>        exprs;
