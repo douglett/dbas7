@@ -22,8 +22,8 @@ struct Parser : InputFile {
 
 	int is_type(const string& type) const {
 		if (type == "int" || type == "string")  return 1;
-		for (int i = 0; i < prog.types.size(); i++)
-			if (prog.types[i].name == type)  return 1;
+		for (auto& t : prog.types)
+			if (t.name == type)  return 1;
 		return 0;
 	}
 	int is_global(const string& name) const {
@@ -267,7 +267,7 @@ struct Parser : InputFile {
 
 	int p_while() {
 		require("while");
-		prog.whiles.push_back({});
+		prog.whiles.push_back({ });
 		int w = prog.whiles.size() - 1;
 		flag_loop++;                              // increment loop control flag (for tracking valid break / continue)
 		prog.whiles.at(w).expr = p_expr();        // while-true condition

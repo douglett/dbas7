@@ -201,21 +201,19 @@ struct Runtime {
 		const Prog::Block& bl = prog.blocks.at(bptr);
 		for (auto& st : bl.statements)
 			// I/O
-			if      (st.type == "print")       r_print(st.loc);
-			else if (st.type == "input")       r_input(st.loc);
+			if      (st.type == "print")        r_print(st.loc);
+			else if (st.type == "input")        r_input(st.loc);
 			// control blocks
-			else if (st.type == "if")          r_if(st.loc);
-			else if (st.type == "while")       r_while(st.loc);
+			else if (st.type == "if")           r_if(st.loc);
+			else if (st.type == "while")        r_while(st.loc);
 			// else if (st.type == "for")
 			// control
-			else if (st.type == "return")      throw ctrl_return( st.loc > -1 ? expr(st.loc) : 0 );  // return (rval: expr OR default(0))
-			else if (st.type == "break")       throw ctrl_break(st.loc);  // break-loop (arg: break level)
-			// else if (st.type == "return")      r_return(st.loc);
-			// else if (st.type == "break")       r_break(st.loc);
-			// else if (st.type == "continue")
+			else if (st.type == "return")       throw ctrl_return( st.loc > -1 ? expr(st.loc) : 0 );  // return (rval: expr OR default(0))
+			else if (st.type == "break")        throw ctrl_break(st.loc);     // break loop (arg: break-level)
+			// else if (st.type == "continue")     throw ctrl_continue(st.loc);  // continue loop (arg: break-level)
 			// expressions
-			else if (st.type == "let")         let(st.loc);
-			else if (st.type == "call")        call(st.loc);
+			else if (st.type == "let")          let(st.loc);
+			else if (st.type == "call")         call(st.loc);
 			else    throw runtime_error("unknown statement: " + st.type);
 	}
 
@@ -249,25 +247,21 @@ struct Runtime {
 	void r_while(int ptr) {
 		const auto& wh = prog.whiles.at(ptr);
 		while ( expr(wh.expr) )
-			try {
-				block(wh.block);
-			}
-			catch (ctrl_break& brk) {
-				if (brk.val != 1)
-					throw runtime_error("TODO: implement break levels");
-				break;
-			}
+			try                        { block(wh.block); }
+			// catch (ctrl_continue& con) { if (--con.val > 0) throw con;  continue; }
+			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
+
+			// catch (ctrl_continue& con) {
+			// 	if (con.val != 1)
+			// 		throw runtime_error("TODO: implement break levels");
+			// 	continue;
+			// }
+			// catch (ctrl_break& brk) {
+			// 	if (brk.val != 1)
+			// 		throw runtime_error("TODO: implement break levels");
+			// 	break;
+			// }
 	}
-	// void r_return(int ex) {
-	// 	int32_t rval = 0;
-	// 	if (ex > -1)  rval = expr(ex);
-	// 	throw ctrl_return(rval);
-	// }
-	// void r_break(int lvl) {
-	// 	if (lvl != 1)
-	// 		throw runtime_error("TODO: implement break levels");
-	// 	throw ctrl_break
-	// }
 	void let(int ptr) {
 		const Prog::Let& l = prog.lets.at(ptr);
 		int32_t  ex = expr(l.expr);

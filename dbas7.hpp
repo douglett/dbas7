@@ -1,7 +1,46 @@
 #pragma once
 #include <vector>
+#include <list>
 #include <string>
+#include <stdexcept>
 using namespace std;
+
+
+// TODO: this is a bad idea in general
+template <typename T>
+class dlist : public list<T> {
+public:
+	using list<T>::list;
+	T&       at        (int i)       { return (T&)find(i); }
+	T&       operator[](int i)       { return (T&)find(i); }
+	const T& at        (int i) const { return find(i); }
+	const T& operator[](int i) const { return find(i); }
+	const T& find(int i) const {
+		if (i < 0 || i >= this->size())
+			throw out_of_range(string("dlist out of range: ") + to_string(i));
+		auto it = this->begin();
+		advance(it, i);
+		return *it;
+	}
+};
+
+
+// template <typename T>
+// class dvec {
+// private:
+// 	vector<T*> v;
+// 	void destroyall() { for (T* el : v) delete el; }
+// public:
+// 	dvec(const dvec& d) {
+// 		destroyall();
+// 		v.resize(d.size(), nullptr);
+// 		for (int i = 0; i < d.size(); i++)
+// 			v[i] = new T(*d.v[i]);
+// 	}
+// 	~dvec() { destroyall(); }
+// 	int size() { return v.size(); }
+// 	int length() { return v.size(); }
+// };
 
 
 struct Prog {
@@ -23,19 +62,19 @@ struct Prog {
 	struct Call         { string fname; vector<Argument> args; int dsym; };
 
 	string                    module;
-	vector<Prog::Type>        types;
-	vector<Prog::Dim>         globals;
-	vector<Prog::Function>    functions;
-	vector<string>            literals;  // temp?
-	vector<Prog::Block>       blocks;
-	vector<Prog::Print>       prints;
-	vector<Prog::Input>       inputs;
-	vector<Prog::If>          ifs;
-	vector<Prog::While>       whiles;
-	vector<Prog::Let>         lets;
-	vector<Prog::VarPath>     varpaths;
-	vector<Prog::Expr>        exprs;
-	vector<Prog::Call>        calls;
+	dlist<Prog::Type>        types;
+	dlist<Prog::Dim>         globals;
+	dlist<Prog::Function>    functions;
+	dlist<string>            literals;  // temp?
+	dlist<Prog::Block>       blocks;
+	dlist<Prog::Print>       prints;
+	dlist<Prog::Input>       inputs;
+	dlist<Prog::If>          ifs;
+	dlist<Prog::While>       whiles;
+	dlist<Prog::Let>         lets;
+	dlist<Prog::VarPath>     varpaths;
+	dlist<Prog::Expr>        exprs;
+	dlist<Prog::Call>        calls;
 };
 
 

@@ -105,16 +105,11 @@ struct Progshow {
 		for (auto& st : b.statements)
 			show_statement(st, id+1);
 	}
-	// void show_block_index(const Prog::Block& b, int id) {
-	// 	int index = &b - &prog.blocks[0];
-	// 	printf("%sblock %d\n", ind(id), index );
-	// 	for (auto& st : b.statements)
-	// 		show_statement(st, id+1);
-	// }
 
 	void show_statement(const Prog::Statement& st, int id) {
 		if      (st.type == "print")    show_print ( prog.prints.at(st.loc), id );
 		else if (st.type == "if")       show_if    ( prog.ifs.at(st.loc), id );
+		else if (st.type == "while")    show_while ( prog.whiles.at(st.loc), id );
 		else if (st.type == "return")   show_return( st.loc, id );
 		else if (st.type == "let")      show_let   ( prog.lets.at(st.loc), id );
 		else if (st.type == "call")     show_call  ( prog.calls.at(st.loc), id );
@@ -133,6 +128,12 @@ struct Progshow {
 				// outp() << ind(id+1) << "else\n";
 				show_block( prog.blocks.at(cond.block), id+1 );
 			}
+	}
+
+	void show_while(const Prog::While& wh, int id) {
+		outp() << ind(id) << "while\n";
+		show_expr_head( prog.exprs.at(wh.expr), id+1 );
+		show_block( prog.blocks.at(wh.block), id+1 );
 	}
 
 	void show_return(int ex, int id) {
