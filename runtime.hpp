@@ -21,7 +21,7 @@ struct Runtime {
 	struct ctrl_exception : exception      { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
 	struct ctrl_return    : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	struct ctrl_break     : ctrl_exception { using ctrl_exception::ctrl_exception; };
-	// struct ctrl_continue  : ctrl_exception { using ctrl_exception::ctrl_exception; };
+	struct ctrl_continue  : ctrl_exception { using ctrl_exception::ctrl_exception; };
 	// state
 	map<string, int32_t>           consts;
 	map<int32_t, MemPage>          heap;
@@ -210,7 +210,7 @@ struct Runtime {
 			// control
 			else if (st.type == "return")       throw ctrl_return( st.loc > -1 ? expr(st.loc) : 0 );  // return (rval: expr OR default(0))
 			else if (st.type == "break")        throw ctrl_break(st.loc);     // break loop (arg: break-level)
-			// else if (st.type == "continue")     throw ctrl_continue(st.loc);  // continue loop (arg: break-level)
+			else if (st.type == "continue")     throw ctrl_continue(st.loc);  // continue loop (arg: break-level)
 			// expressions
 			else if (st.type == "let")          let(st.loc);
 			else if (st.type == "call")         call(st.loc);
@@ -248,7 +248,7 @@ struct Runtime {
 		const auto& wh = prog.whiles.at(ptr);
 		while ( expr(wh.expr) )
 			try                        { block(wh.block); }
-			// catch (ctrl_continue& con) { if (--con.val > 0) throw con;  continue; }
+			catch (ctrl_continue& con) { if (--con.val > 0) throw con;  continue; }
 			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
 
 			// catch (ctrl_continue& con) {

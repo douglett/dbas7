@@ -184,7 +184,7 @@ struct Parser : InputFile {
 			// control
 			else if (peek("return"))          add_stmt(bl, { "return",     p_return() });
 			else if (peek("break"))           add_stmt(bl, { "break",      p_break() });
-			// else if (peek("continue"))        add_stmt(bl, { "continue",   p_continue();
+			else if (peek("continue"))        add_stmt(bl, { "continue",   p_continue() });
 			// expressions
 			else if (peek("let"))             add_stmt(bl, { "let",        p_let() });
 			else if (peek("call"))            add_stmt(bl, { "call",       p_call_stmt() });
@@ -286,15 +286,16 @@ struct Parser : InputFile {
 		return ex;
 	}
 
-	int p_break() {
-		require("break");
+	int p_break   () { require("break");     return p_break_level(); }
+	int p_continue() { require("continue");  return p_break_level(); }
+	int p_break_level() {
 		if (!flag_loop)
-			throw error("break outside of loop");
+			throw error("break/continue outside of loop");
 		int level = 1;
 		if (expect("@integer")) {
 			level = stoi(lastrule.at(0));
 			if (level > flag_loop)
-				throw error("break level out-of-bounds", lastrule.at(0));
+				throw error("break/continue level out-of-bounds", lastrule.at(0));
 		}
 		require("@endl"), nextline();
 		return level;

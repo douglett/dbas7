@@ -4,16 +4,17 @@ function main()
 	i = 5
 	while i
 		j = 5
+		print "fart i", i
 		while j
-			print "butt   i: " i "   j: " j
-			j = j - 1
-			if j == 2
-				# continue
+			if j == 3
+				j = j - 1
+				continue
 			else if j == 1
 				break
 			end if
+			print "butt   i: " i "   j: " j
+			j = j - 1
 		end while
 		i = i - 1
-		print "fart i", i
 	end while
 end function
