@@ -15,7 +15,26 @@ struct Progshow {
 	const Prog& prog;
 	fstream fs;
 
+
+	// === api ===
+
 	Progshow(const Prog& _prog) : prog(_prog) { }
+
+	int tofile(const string& fname) {
+		fs.open(fname, ios::out);
+		if (!fs.is_open()) {
+			fprintf(stderr, "could not open file: %s\n", fname.c_str());
+			cout.flush(), cerr.flush();
+			return 1;
+		}
+		show();
+		fs.close();
+		printf("wrote program output to: %s\n", fname.c_str());
+		return 0;
+	}
+
+
+	// === helpers ===
 
 	ostream& outp() { return fs.is_open() ? fs : cout; }
 	const char* ind(int id) {
@@ -32,18 +51,8 @@ struct Progshow {
 	}
 
 
-	int tofile(const string& fname) {
-		fs.open(fname, ios::out);
-		if (!fs.is_open()) {
-			fprintf(stderr, "could not open file: %s\n", fname.c_str());
-			cout.flush(), cerr.flush();
-			return 1;
-		}
-		show();
-		fs.close();
-		printf("wrote program output to: %s\n", fname.c_str());
-		return 0;
-	}
+
+	// === show ===
 
 	void show() {
 		// module name
@@ -52,150 +61,152 @@ struct Progshow {
 		// all string literals
 		output("", 0);
 		output("<literals>", 0);
-		for (auto& s : prog.literals)
-			show_literal_index(s, 1);
+		for (int i = 0; i < prog.literals.size(); i++)
+			show_literal_index(i, 1);
 		// types
 		output("", 0);
 		output("<types>", 0);
-		for (auto& t : prog.types)
+		for (const auto& t : prog.types)
 			show_type(t, 1);
 		// globals
 		output("", 0);
 		output("<globals>", 0);
-		for (auto& g : prog.globals)
+		for (const auto& g : prog.globals)
 			show_dim(g, 1);
 		// functions
 		output("", 0);
 		output("<functions>", 0);
-		for (auto& fn : prog.functions)
+		for (const auto& fn : prog.functions)
 			output("", 0),  show_function(fn, 0);
 	}
 
-	void show_literal(const string& s, int id) {
-		output("\"" + s + "\"", id);
-	}
-	void show_literal_index(const string& s, int id) {
-		int index = &s - &prog.literals[0];
-		output(numfmt(index, 2) + " \"" + s + "\"", id);
+	void show_literal      (int sp, int id) { output("\"" + prog.literals.at(sp) + "\"", id); }
+	void show_literal_head (int sp, int id) { output("lit \"" + prog.literals.at(sp) + "\"", id); }
+	void show_literal_index(int sp, int id) { output(numfmt(sp, 2) + " \"" + prog.literals.at(sp) + "\"", id); }
+
+	void show_dim(const Prog::Dim& d, int id) {
+		output(d.type + "  " + d.name, id);
 	}
 
 	void show_type(const Prog::Type& t, int id) {
-		outp() << ind(id) << "type " << t.name << endl;
+		output("type " + t.name, id);
 		for (auto& d : t.members)
 			show_dim(d, id+1);
 	}
 
-	void show_dim(const Prog::Dim& d, int id) {
-		outp() << ind(id) << d.type << "  " << d.name << endl;
-	}
-
 	void show_function(const Prog::Function& fn, int id) {
-		outp() << ind(id) << "function " << fn.name << endl;
-		outp() << ind(id+1) << "args\n";
+		output("function " + fn.name, id);
+		output("args", id+1);
 		for (auto& d : fn.args)
 			show_dim(d, id+2);
-		outp() << ind(id+1) << "locals\n";
+		output("locals", id+1);
 		for (auto& d : fn.locals)
 			show_dim(d, id+2);
-		show_block(prog.blocks.at(fn.block), id+1);
+		show_block(fn.block, id+1);
 	}
 
-	void show_block(const Prog::Block& b, int id) {
-		outp() << ind(id) << "block\n";
-		for (auto& st : b.statements)
-			show_statement(st, id+1);
+	void show_block(int blp, int id) {
+		const auto& bl = prog.blocks.at(blp);
+		output("block", id);
+		for (auto& st : bl.statements)
+			if      (st.type == "print")    show_print (st.loc, id);
+			else if (st.type == "if")       show_if    (st.loc, id);
+			else if (st.type == "while")    show_while (st.loc, id);
+			else if (st.type == "return")   show_return(st.loc, id);
+			else if (st.type == "let")      show_let   (st.loc, id);
+			else if (st.type == "call")     show_call  (st.loc, id);
+			else    output("?? (" + st.type + ")", id);
 	}
 
-	void show_statement(const Prog::Statement& st, int id) {
-		if      (st.type == "print")    show_print ( prog.prints.at(st.loc), id );
-		else if (st.type == "if")       show_if    ( prog.ifs.at(st.loc), id );
-		else if (st.type == "while")    show_while ( prog.whiles.at(st.loc), id );
-		else if (st.type == "return")   show_return( st.loc, id );
-		else if (st.type == "let")      show_let   ( prog.lets.at(st.loc), id );
-		else if (st.type == "call")     show_call  ( prog.calls.at(st.loc), id );
-		else    outp() << ind(id) << "?? (" << st.type << ")\n";
-	}
-
-	void show_if(const Prog::If& ii, int id) {
-		outp() << ind(id) << "if\n";
-		for (auto& cond : ii.conds)
-			if (cond.expr > -1) {
-				outp() << ind(id+1) << "condition\n";
-				show_expr( prog.exprs.at(cond.expr), id+2 );
-				show_block( prog.blocks.at(cond.block), id+2 );
-			}
-			else {
-				// outp() << ind(id+1) << "else\n";
-				show_block( prog.blocks.at(cond.block), id+1 );
-			}
-	}
-
-	void show_while(const Prog::While& wh, int id) {
-		outp() << ind(id) << "while\n";
-		show_expr_head( prog.exprs.at(wh.expr), id+1 );
-		show_block( prog.blocks.at(wh.block), id+1 );
-	}
-
-	void show_return(int ex, int id) {
-		outp() << ind(id) << "return\n";
-		if (ex > -1)  show_expr( prog.exprs.at(ex), id+1 );
-	}
-
-	void show_let(const Prog::Let& l, int id) {
-		outp() << ind(id) << "let\n";
-			// outp() << ind(id+1) << "path\n";
-			show_varpath_head( prog.varpaths.at(l.varpath), id+1 );
-			// outp() << ind(id+1) << "expr\n";
-			show_expr_head   ( prog.exprs.at(l.expr), id+1 );
-	}
-
-	void show_print(const Prog::Print& pr, int id) {
-		outp() << ind(id) << "print\n";
+	void show_print(int prp, int id) {
+		const auto& pr = prog.prints.at(prp);
+		output("print", id);
 		for (auto& in : pr.instr) {
-			outp() << ind(id+1) << in.cmd << endl;
-			if      (in.cmd == "literal")   show_literal( prog.literals.at(in.iarg), id+2 );
-			else if (in.cmd == "expr")      show_expr   ( prog.exprs.at   (in.iarg), id+2 );
-			else if (in.cmd == "expr_str")  show_expr   ( prog.exprs.at   (in.iarg), id+2 );
-			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
+			output(in.cmd, id+1);
+			if      (in.cmd == "literal")   show_literal(in.iarg, id+2);
+			else if (in.cmd == "expr")      show_expr   (in.iarg, id+2);
+			else if (in.cmd == "expr_str")  show_expr   (in.iarg, id+2);
+			else    output("?? (" + in.cmd + ")", id+2);
 		}
 	}
 
-	void show_varpath_head(const Prog::VarPath& vp, int id) {
-		output("varpath (" + vp.type + ")", id);
-		show_varpath(vp, id+1);
+	void show_if(int ifp, int id) {
+		const auto& ii = prog.ifs.at(ifp);
+		output("if", id);
+		for (auto& cond : ii.conds)
+			if (cond.expr > -1)
+				output    ("condition", id+1),
+				show_expr (cond.expr, id+2),
+				show_block(cond.block, id+2);
+			else
+				show_block(cond.block, id+1);
 	}
-	void show_varpath(const Prog::VarPath& vp, int id) {
+
+	void show_while(int whp, int id) {
+		const auto& wh = prog.whiles.at(whp);
+		output        ("while", id);
+		show_expr_head(wh.expr, id+1);
+		show_block    (wh.block, id+1);
+	}
+
+	void show_return(int exp, int id) {
+		output("return", id);
+		if (exp > -1)  show_expr(exp, id+1);
+	}
+
+	void show_let(int lp, int id) {
+		const auto& l = prog.lets.at(lp);
+		output           ("let", id);
+		show_varpath_head(l.varpath, id+1);
+		show_expr_head   (l.expr, id+1);
+	}
+
+	void show_call(int cap, int id) {
+		const auto& ca = prog.calls.at(cap);
+		output("call " + ca.fname, id);
+		for (auto& arg : ca.args)
+			show_expr_head(arg.expr, id+1);
+	}
+
+	void show_varpath_head(int vpp, int id) {
+		const auto& vp = prog.varpaths.at(vpp);
+		output("varpath (" + vp.type + ")", id);
+		show_varpath(vpp, id+1);
+	}
+	void show_varpath(int vpp, int id) {
+		const auto& vp = prog.varpaths.at(vpp);
 		for (auto& in : vp.instr)
 			if (in.cmd == "get" || in.cmd == "get_global" || in.cmd == "memget_prop")
-				outp() << ind(id) << in.cmd << " " << in.sarg << endl;
+				output(in.cmd + " " + in.sarg, id);
 			else if (in.cmd == "memget_expr")
-				output(in.cmd, id),  show_expr( prog.exprs.at(in.iarg), id+1 );
-			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
+				output   (in.cmd, id),
+				show_expr(in.iarg, id+1);
+			else
+				output("?? (" + in.cmd + ")", id);
 	}
 
-	void show_expr_head(const Prog::Expr& ex, int id) {
+	void show_expr_head(int exp, int id) {
+		const auto& ex = prog.exprs.at(exp);
 		output("expr (" + ex.type + ")", id);
-		show_expr(ex, id+1);
+		show_expr(exp, id+1);
 	}
-	void show_expr(const Prog::Expr& ex, int id) {
+	void show_expr(int exp, int id) {
+		const auto& ex = prog.exprs.at(exp);
 		for (auto& in : ex.instr)
-			if      (in.cmd == "i")    outp() << ind(id) << in.cmd << " " << in.iarg << endl;
-			// else if (in.cmd == "lit")  show_literal( prog.literals.at(in.iarg), id );
-			else if (in.cmd == "lit")  outp() << ind(id) << "lit \"" << prog.literals.at(in.iarg) << "\"\n";
+			if      (in.cmd == "i")
+				output("i " + to_string(in.iarg), id);
+			else if (in.cmd == "lit")
+				show_literal_head(in.iarg, id+2);
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str")
-				output(in.cmd, id),  show_varpath( prog.varpaths.at(in.iarg), id+1 );
+				output(in.cmd, id),  show_varpath(in.iarg, id+1);
 			else if (in.cmd == "varpath_ptr")
-				show_varpath_head( prog.varpaths.at(in.iarg), id+1 );
+				show_varpath_head(in.iarg, id+1);
 			else if (in.cmd == "call")
-				show_call   ( prog.calls.at(in.iarg), id );
+				show_call(in.iarg, id);
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "eq" || in.cmd == "neq" || in.cmd == "strcat")
-				outp() << ind(id) << in.cmd << endl;
-			else    outp() << ind(id) << "?? (" << in.cmd << ")\n";
+				output(in.cmd, id);
+			else
+				output("?? (" + in.cmd + ")", id);
 	}
 
-	void show_call(const Prog::Call& ca, int id) {
-		outp() << ind(id) << "call " << ca.fname << endl;
-		for (auto& arg : ca.args)
-			show_expr_head( prog.exprs.at(arg.expr), id+1 );
-	}
 };
