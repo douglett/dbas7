@@ -109,12 +109,14 @@ struct Progshow {
 		const auto& bl = prog.blocks.at(blp);
 		output("block", id);
 		for (auto& st : bl.statements)
-			if      (st.type == "print")    show_print (st.loc, id);
-			else if (st.type == "if")       show_if    (st.loc, id);
-			else if (st.type == "while")    show_while (st.loc, id);
-			else if (st.type == "return")   show_return(st.loc, id);
-			else if (st.type == "let")      show_let   (st.loc, id);
-			else if (st.type == "call")     show_call  (st.loc, id);
+			if      (st.type == "print")     show_print (st.loc, id);
+			else if (st.type == "if")        show_if    (st.loc, id);
+			else if (st.type == "while")     show_while (st.loc, id);
+			else if (st.type == "return")    show_return(st.loc, id);
+			else if (st.type == "break")     output("break " + to_string(st.loc), id);
+			else if (st.type == "continue")  output("continue " + to_string(st.loc), id);
+			else if (st.type == "let")       show_let   (st.loc, id);
+			else if (st.type == "call")      show_call  (st.loc, id);
 			else    output("?? (" + st.type + ")", id);
 	}
 
