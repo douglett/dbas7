@@ -181,7 +181,7 @@ struct Parser : InputFile {
 			// control blocks
 			else if (peek("if"))              stm.push_back({ "if",         p_if() });
 			else if (peek("while"))           stm.push_back({ "while",      p_while() });
-			// else if (peek("for"))        p_for();
+			else if (peek("for"))             stm.push_back({ "for",        p_for() });
 			// control
 			else if (peek("return"))          stm.push_back({ "return",     p_return() });
 			else if (peek("break"))           stm.push_back({ "break",      p_break() });
@@ -235,7 +235,7 @@ struct Parser : InputFile {
 		if (expect("@literal"))
 			in.prompt = Strings::deliteral( lastrule.at(0) ),
 			require(",");
-		in.varpath = p_varpath();
+		in.varpath = p_varpath("string");
 		require("@endl"), nextline();
 		return inp;
 	}
@@ -284,6 +284,28 @@ struct Parser : InputFile {
 		return whp;
 	}
 
+	int p_for() {
+		require("for");
+		prog.fors.push_back({ });
+		int   fop = prog.fors.size() - 1;
+		auto& fo  = prog.fors.back();
+		flag_loop++;
+		// for condition
+		fo.varpath    = p_varpath("int");
+		require("=");
+		fo.start_expr = p_expr("int");
+		require("to");
+		fo.end_expr   = p_expr("int");
+		// TODO: step
+		require("@endl"), nextline();
+		// block
+		fo.block      = p_block();
+		// block end
+		require("end for @endl"), nextline();
+		flag_loop--;
+		return fop;
+	}
+
 	int p_return() {
 		require("return");
 		int ex = -1;  // default: no expression
@@ -300,7 +322,7 @@ struct Parser : InputFile {
 		int level = 1;
 		if (expect("@integer")) {
 			level = stoi(lastrule.at(0));
-			if (level > flag_loop)
+			if (level < 1 || level > flag_loop)
 				throw error("break/continue level out-of-bounds", lastrule.at(0));
 		}
 		require("@endl"), nextline();
@@ -310,12 +332,12 @@ struct Parser : InputFile {
 	int p_let() {
 		expect("let");                                          // keyword is optional
 		prog.lets.push_back({ "<NULL>", -1, -1 });
-		int   letp = prog.lets.size() - 1;
-		auto& let  = prog.lets.back();
-		let.varpath = p_varpath();                              // parse dest varpath
-		let.type = prog.varpaths.at(let.varpath).type;          // get varpath type
+		int   letp  = prog.lets.size() - 1;
+		auto& let   = prog.lets.back();
+		let.varpath = p_varpath_any();                          // parse dest varpath
+		let.type    = prog.varpaths.at(let.varpath).type;       // get varpath type
 		require("=");
-		let.expr = p_expr(let.type);                            // parse src varpath as type
+		let.expr    = p_expr(let.type);                         // parse src varpath as type
 		require("@endl"), nextline();
 		return letp;
 	}
@@ -324,7 +346,15 @@ struct Parser : InputFile {
 
 // --- Variable path handling ---
 
-	int p_varpath() {
+	int p_varpath(const string& type) {
+		int vpp = p_varpath_any();
+		const auto& t = prog.varpaths.at(vpp).type;
+		if (type != t)
+			throw error("unexpected type in varpath (expected " + type + ")", t);
+		return vpp;
+	}
+
+	int p_varpath_any() {
 		require("@identifier");
 		prog.varpaths.push_back({ "<NULL>" });
 		int   vpp  = prog.varpaths.size() - 1;
@@ -383,6 +413,13 @@ struct Parser : InputFile {
 
 // --- Function calls ---
 
+	int p_call_stmt() {
+		expect("call");  // optional keyword
+		int cap = p_call();
+		require("@endl"), nextline();
+		return cap;
+	}
+
 	int p_call() {
 		require("@identifier (");
 		string fname = lastrule.at(0);
@@ -397,13 +434,6 @@ struct Parser : InputFile {
 			peek(")") || require(",");
 		}
 		require(")");
-		return cap;
-	}
-	
-	int p_call_stmt() {
-		expect("call");  // optional keyword
-		int cap = p_call();
-		require("@endl"), nextline();
 		return cap;
 	}
 
@@ -464,8 +494,6 @@ struct Parser : InputFile {
 
 // --- Expressions ---
 
-	// Prog::Expr& eptr(int ptr) { return prog.exprs.at(ptr); }
-
 	int p_expr(const string& type) {
 		int exp = p_expr_any();
 		const auto& t = prog.exprs.at(exp).type;
@@ -473,6 +501,7 @@ struct Parser : InputFile {
 			throw error("unexpected type in expression (expected " + type + ")", t);
 		return exp;
 	}
+
 	int p_expr_any() {
 		prog.exprs.push_back({ "<NULL>" });
 		int   exp = prog.exprs.size() - 1;
@@ -515,7 +544,6 @@ struct Parser : InputFile {
 	}
 
 	void p_expr_atom(Prog::Expr& ex) {
-		int t = 0;
 		if (expect("@integer"))
 			ex.instr.push_back({ "i", stoi(lastrule.at(0)) }),
 			ex.type = "int";
@@ -526,11 +554,11 @@ struct Parser : InputFile {
 			ex.instr.push_back({ "call",  p_call() }),
 			ex.type = "int";
 		else if (peek("@identifier")) {
-			t = p_varpath();
-			ex.type = prog.varpaths.at(t).type;
-			if      (ex.type == "int")     ex.instr.push_back({ "varpath",     t });
-			else if (ex.type == "string")  ex.instr.push_back({ "varpath_str", t });
-			else    ex.instr.push_back({ "varpath_ptr", t });
+			int vpp = p_varpath_any();
+			ex.type = prog.varpaths.at(vpp).type;
+			if      (ex.type == "int")     ex.instr.push_back({ "varpath",     vpp });
+			else if (ex.type == "string")  ex.instr.push_back({ "varpath_str", vpp });
+			else    ex.instr.push_back({ "varpath_ptr", vpp });
 		}
 		else
 			throw error("expected atom");

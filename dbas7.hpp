@@ -55,6 +55,7 @@ struct Prog {
 	struct Condition    { int expr; int block; };
 	struct If           { vector<Condition> conds; };
 	struct While        { int expr; int block; };
+	struct For          { int varpath; int start_expr; int end_expr; int block; };
 	struct Let          { string type; int varpath, expr; };
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };
@@ -71,6 +72,7 @@ struct Prog {
 	dlist<Prog::Input>       inputs;
 	dlist<Prog::If>          ifs;
 	dlist<Prog::While>       whiles;
+	dlist<Prog::For>         fors;
 	dlist<Prog::Let>         lets;
 	dlist<Prog::VarPath>     varpaths;
 	dlist<Prog::Expr>        exprs;
@@ -107,7 +109,8 @@ namespace Tokens {
 	int is_keyword(const string& s) {
 		static const vector<string> KEYWORDS = {
 			// "int", "string",
-			"type", "dim", "redim", "function", "end", "if", "while", "break", "continue" };
+			"type", "function", "end", "if", "else", "while", "for", "break", "continue", "to", "step",
+			"dim", "redim", "let", "call", "print", "input" };
 		for (auto& k : KEYWORDS)  if (k == s)  return 1;
 		return 0;
 	}

@@ -206,7 +206,7 @@ struct Runtime {
 			// control blocks
 			else if (st.type == "if")           r_if(st.loc);
 			else if (st.type == "while")        r_while(st.loc);
-			// else if (st.type == "for")
+			else if (st.type == "for")          r_for(st.loc);
 			// control
 			else if (st.type == "return")       throw ctrl_return( st.loc > -1 ? expr(st.loc) : 0 );  // return (rval: expr OR default(0))
 			else if (st.type == "break")        throw ctrl_break(st.loc);     // break loop (arg: break-level)
@@ -250,20 +250,20 @@ struct Runtime {
 			try                        { block(wh.block); }
 			catch (ctrl_continue& con) { if (--con.val > 0) throw con;  continue; }
 			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
-
-			// catch (ctrl_continue& con) {
-			// 	if (con.val != 1)
-			// 		throw runtime_error("TODO: implement break levels");
-			// 	continue;
-			// }
-			// catch (ctrl_break& brk) {
-			// 	if (brk.val != 1)
-			// 		throw runtime_error("TODO: implement break levels");
-			// 	break;
-			// }
+	}
+	void r_for(int ptr) {
+		const auto& fo = prog.fors.at(ptr);
+		varpath(fo.varpath) = expr(fo.start_expr);
+		// TODO: step. how to calculate reverse?
+		while ( varpath(fo.varpath) <= expr(fo.end_expr) ) {
+			try                        { block(fo.block); }
+			catch (ctrl_continue& con) { if (--con.val > 0) throw con; }
+			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
+			varpath(fo.varpath) += 1;  // step
+		}
 	}
 	void let(int ptr) {
-		const Prog::Let& l = prog.lets.at(ptr);
+		const auto& l = prog.lets.at(ptr);
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
 		if      (l.type == "int")     vp = ex;
