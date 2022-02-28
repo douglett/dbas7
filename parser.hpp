@@ -299,8 +299,7 @@ struct Parser : InputFile {
 		// step (optional - fixed value)
 		fo.step = 1;  // default step
 		if (expect("step"))
-			require("@integer"),
-			fo.step = stoi(lastrule.at(0));
+			fo.step = p_integer();
 		require("@endl"), nextline();
 		// block
 		fo.block      = p_block();
@@ -548,8 +547,8 @@ struct Parser : InputFile {
 	}
 
 	void p_expr_atom(Prog::Expr& ex) {
-		if (expect("@integer"))
-			ex.instr.push_back({ "i", stoi(lastrule.at(0)) }),
+		if (peek("@sign") || peek("@integer"))
+			ex.instr.push_back({ "i",     p_integer() }),
 			ex.type = "int";
 		else if (peek("@literal"))
 			ex.instr.push_back({ "lit",   p_literal() }),
@@ -567,6 +566,19 @@ struct Parser : InputFile {
 		else
 			throw error("expected atom");
 	}
+
+	int32_t p_integer() {
+		expect("@sign @integer") || require("@integer");
+		return stoi( Strings::join(lastrule, "") );
+	}
+
+	// double p_realnum() {
+	// 	expect("@sign @integer . @integer")
+	// 		|| expect("@integer . @integer")
+	// 		|| expect("@sign @integer")
+	// 		|| require("@integer");
+	// 	return stod( Strings::join(lastrule, "") );
+	// }
 
 	int p_literal() {
 		require("@literal");

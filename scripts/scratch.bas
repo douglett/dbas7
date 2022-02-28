@@ -47,7 +47,7 @@ end function
 
 function for_step()
 	dim i
-	for i = 1 to 5 step 3
+	for i = 5 to 1 step -1
 		print i
 	end for
 end function

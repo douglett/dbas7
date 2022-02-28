@@ -19,11 +19,12 @@ struct InputFile {
 	int lno = 0, pos = 0;
 
 	// state info
-	int eol(int off=0)    const { return pos + off >= tokens.size(); }
-	int eof()             const { return lno >= lines.size(); }
-	int lineno()          const { return lno + 1; }
-	string peekline()     const { return lno < lines.size() ? lines[lno] : "<EOF>"; }
-	string currenttoken() const { return eol() ? "<EOL>" : tokens.at(pos); }
+	int eof()               const { return lno >= lines.size(); }
+	int eol(int off=0)      const { return pos + off >= tokens.size(); }
+	int lineno()            const { return lno + 1; }
+	string peekline()       const { return lno < lines.size() ? lines[lno] : "<EOF>"; }
+	string tokenat(int off) const { return eof() ? "<EOF>" : eol(off) ? "<EOL>" : tokens[pos + off]; }
+	string currenttoken()   const { return tokenat(0); }
 
 	// mutators
 	int nextline() { return lno++, tokenizeline(); }
@@ -107,7 +108,7 @@ struct InputFile {
 
 	// token access :: (simplified version of dbas6)
 	int peekt(const string& tok, int off=0) {
-		if (!eol(off) && tokens[pos + off] == tok)
+		if (!eof() && !eol(off) && tokens[pos + off] == tok)
 			return lasttok = tok, 1;
 		return 0;
 	}
@@ -119,13 +120,14 @@ struct InputFile {
 		return 1;
 	}
 	int peekp(const string& pat, int off=0) {
-		string tok = eof() ? "<EOF>" : eol(off) ? "<EOL>" : tokens[pos + off];
+		string tok = tokenat(off);
 		int res = 0;
 		// printf("rulecheck  %s \n", tok.c_str() );
 		if      (pat == "eof")         res = eof();
 		else if (pat == "eol")         res = eol(off);
 		else if (pat == "endl")        res = eof() || eol(off) || Tokens::is_comment(tok);
 		else if (pat == "integer")     res = Tokens::is_integer(tok);
+		else if (pat == "sign")        res = tok == "+" || tok == "-";
 		else if (pat == "identifier")  res = Tokens::is_identifier(tok);
 		else if (pat == "literal")     res = Tokens::is_literal(tok);
 		else  throw runtime_error("unknown pattern: " + pat);
