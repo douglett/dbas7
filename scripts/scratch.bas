@@ -45,6 +45,15 @@ function for_test2()
 end function
 
 
+function for_step()
+	dim i
+	for i = 1 to 5 step 3
+		print i
+	end for
+end function
+
+
 function main()
-	for_test2()
+	# for_test2()
+	for_step()
 end function

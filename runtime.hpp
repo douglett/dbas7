@@ -254,12 +254,13 @@ struct Runtime {
 	void r_for(int ptr) {
 		const auto& fo = prog.fors.at(ptr);
 		varpath(fo.varpath) = expr(fo.start_expr);
-		// TODO: step. how to calculate reverse?
-		while ( varpath(fo.varpath) <= expr(fo.end_expr) ) {
+		while (true) {
+			if      (fo.step >= 0 && varpath(fo.varpath) > expr(fo.end_expr))  break;  // forward loop
+			else if (fo.step <  0 && varpath(fo.varpath) < expr(fo.end_expr))  break;  // reverse loop
 			try                        { block(fo.block); }
 			catch (ctrl_continue& con) { if (--con.val > 0) throw con; }
 			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
-			varpath(fo.varpath) += 1;  // step
+			varpath(fo.varpath) += fo.step;  // step
 		}
 	}
 	void let(int ptr) {

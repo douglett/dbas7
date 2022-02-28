@@ -55,7 +55,7 @@ struct Prog {
 	struct Condition    { int expr; int block; };
 	struct If           { vector<Condition> conds; };
 	struct While        { int expr; int block; };
-	struct For          { int varpath; int start_expr; int end_expr; int block; };
+	struct For          { int varpath; int start_expr; int end_expr; int32_t step; int block; };
 	struct Let          { string type; int varpath, expr; };
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };

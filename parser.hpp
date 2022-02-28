@@ -296,7 +296,11 @@ struct Parser : InputFile {
 		fo.start_expr = p_expr("int");
 		require("to");
 		fo.end_expr   = p_expr("int");
-		// TODO: step
+		// step (optional - fixed value)
+		fo.step = 1;  // default step
+		if (expect("step"))
+			require("@integer"),
+			fo.step = stoi(lastrule.at(0));
 		require("@endl"), nextline();
 		// block
 		fo.block      = p_block();
