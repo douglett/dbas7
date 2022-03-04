@@ -112,25 +112,27 @@ struct Parser : InputFile {
 		else if (require("dim @identifier"))                  type = btype = "int",  name = lastrule.at(0);
 		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
-		return { name, type };
+		return { name, type, .expr=-1, .dsym=lineno() };
 	}
 
 	void p_dim_global() {
 		auto dim = p_dim_start();
 		if (is_global(dim.name))
 			throw error("global redefined", dim.name);
-		prog.globals.push_back(dim);
-		// TODO: assign here
+		if (expect("="))
+			dim.expr = p_expr(dim.type);
 		require("@endl"), nextline();
+		prog.globals.push_back(dim);
 	}
 
 	void p_dim_local() {
 		auto dim = p_dim_start();
 		if (is_local(dim.name))
 			throw error("local redefined", dim.name);
-		prog.functions.at(flag_func).locals.push_back(dim);
-		// TODO: assign here
+		if (expect("="))
+			dim.expr = p_expr(dim.type);
 		require("@endl"), nextline();
+		prog.functions.at(flag_func).locals.push_back(dim);
 	}
 
 	void p_function() {

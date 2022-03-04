@@ -81,6 +81,7 @@ struct Runtime {
 		return heap.at(ptr).mem.size();
 	}
 
+
 	// heap memory make
 	int32_t memalloc(string type, int32_t size) {
 		heap[++memtop] = { .type=type, .mem=vector<int32_t>(size, 0) };
@@ -106,6 +107,16 @@ struct Runtime {
 	}
 
 	// heap memory clone
+	// TODO: clean up multiple clone functions
+	int32_t clone2(const string& type, int32_t sptr, int32_t dptr=0) {
+		assert(!(type == "int" && dptr != 0));
+		if      (type == "int")  return sptr;  // raw int
+		else if (dptr == 0)      dptr = memalloc(heap.at(sptr).type, 0);  // cloning to empty memory
+		else                     unmake(dptr);  // cloning to existing memory
+		_clone(sptr, dptr);  // perform clone
+		return dptr;
+	}
+
 	int32_t clone(int32_t sptr) {
 		int32_t dptr = memalloc(heap.at(sptr).type, 0);
 		_clone(sptr, dptr);
@@ -124,7 +135,8 @@ struct Runtime {
 		// TODO: is this memory safe?
 		auto& spage = heap.at(sptr);
 		auto& dpage = heap.at(dptr);
-		assert(dpage.mem.size() > 0);
+		assert(dpage.mem.size() > 0);  // TODO: why?
+		assert(spage.type == dpage.type);
 		// linear memory
 		if (spage.type == "string" || spage.type == "int[]")
 			dpage.mem = spage.mem;
@@ -192,7 +204,10 @@ struct Runtime {
 			consts["USRTYPE_" + t.name + "_" + t.members[i].name] = i;
 	}
 	void init_dim(const Prog::Dim& d) {
-		globals[d.name] = { d.type, make(d.type) };
+		auto& cframe = fstack.size() ? fstack.back() : globals;
+		cframe[d.name] = { d.type, 0 };
+		if   (d.expr > -1)  cframe[d.name].v = clone2( d.type, expr(d.expr) );
+		else                cframe[d.name].v = make(d.type);
 	}
 
 
@@ -292,7 +307,8 @@ struct Runtime {
 		// push new frame and calculate locals
 		fstack.push_back(newframe);  
 		for (auto& d : fn.locals)
-			ftop()[d.name] = { d.type, make(d.type) };
+			// ftop()[d.name] = { d.type, make(d.type) };
+			init_dim(d);
 		// run main block
 		int32_t rval = 0;
 		try { block(fn.block); }

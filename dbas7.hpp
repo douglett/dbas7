@@ -44,7 +44,7 @@ public:
 
 
 struct Prog {
-	struct Dim          { string name, type; };
+	struct Dim          { string name, type; int expr; int dsym; };
 	struct Type         { string name; vector<Dim> members; };
 	struct Function     { string name; int block; vector<Dim> args, locals; int dsym; };
 	struct Statement    { string type; int loc; };
