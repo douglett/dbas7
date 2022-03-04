@@ -117,22 +117,34 @@ struct Parser : InputFile {
 
 	void p_dim_global() {
 		auto dim = p_dim_start();
-		if (is_global(dim.name))
-			throw error("global redefined", dim.name);
-		if (expect("="))
-			dim.expr = p_expr(dim.type);
+		while (true) {
+			if (is_global(dim.name))
+				throw error("global redefined", dim.name);
+			if (expect("="))
+				dim.expr = p_expr(dim.type);
+			prog.globals.push_back(dim);
+			if (!expect(","))  // comma seperated defines
+				break;
+			require("@identifier");
+			dim.name = lastrule.at(0),  dim.expr = -1;
+		}
 		require("@endl"), nextline();
-		prog.globals.push_back(dim);
 	}
 
 	void p_dim_local() {
 		auto dim = p_dim_start();
-		if (is_local(dim.name))
-			throw error("local redefined", dim.name);
-		if (expect("="))
-			dim.expr = p_expr(dim.type);
+		while (true) {
+			if (is_local(dim.name))
+				throw error("local redefined", dim.name);
+			if (expect("="))
+				dim.expr = p_expr(dim.type);
+			prog.functions.at(flag_func).locals.push_back(dim);
+			if (!expect(","))  // comma seperated defines
+				break;
+			require("@identifier");
+			dim.name = lastrule.at(0),  dim.expr = -1;
+		}
 		require("@endl"), nextline();
-		prog.functions.at(flag_func).locals.push_back(dim);
 	}
 
 	void p_function() {
