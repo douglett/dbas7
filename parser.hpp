@@ -590,6 +590,9 @@ struct Parser : InputFile {
 			else if (ex.type == "string")  ex.instr.push_back({ "varpath_str", vpp });
 			else    ex.instr.push_back({ "varpath_ptr", vpp });
 		}
+		else if (expect("("))
+			p_expr_compare(ex),
+			require(")");
 		else
 			throw error("expected atom");
 	}
