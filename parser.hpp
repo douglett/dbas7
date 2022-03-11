@@ -577,6 +577,9 @@ struct Parser : InputFile {
 		if (peek("@sign") || peek("@integer"))
 			ex.instr.push_back({ "i",     p_integer() }),
 			ex.type = "int";
+		else if (expect("true") || expect("false"))
+			ex.instr.push_back({ "i",     lasttok == "true" }),
+			ex.type = "int";
 		else if (peek("@literal"))
 			ex.instr.push_back({ "lit",   p_literal() }),
 			ex.type = "string";
