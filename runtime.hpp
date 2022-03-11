@@ -393,6 +393,8 @@ struct Runtime {
 			else if (in.cmd == "sub")          t = ipop(),  ipeek() -= t;
 			else if (in.cmd == "mul")          t = ipop(),  ipeek() *= t;
 			else if (in.cmd == "div")          t = ipop(),  ipeek() /= t;
+			else if (in.cmd == "and")          t = ipop(),  ipeek()  = ipeek() && t;
+			else if (in.cmd == "or")           t = ipop(),  ipeek()  = ipeek() || t;
 			else if (in.cmd == "eq")           t = ipop(),  u = ipop(),  ipush(u == t);
 			else if (in.cmd == "neq")          t = ipop(),  u = ipop(),  ipush(u != t);
 			// strings

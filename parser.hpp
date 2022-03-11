@@ -523,10 +523,30 @@ struct Parser : InputFile {
 		prog.exprs.push_back({ "<NULL>" });
 		int   exp = prog.exprs.size() - 1;
 		auto& ex  = prog.exprs.back();
-		p_expr_compare(ex);
+		p_expr_or(ex);
 		return exp;
 	}
 	
+	void p_expr_or(Prog::Expr& ex) {
+		p_expr_and(ex);
+		if (expect("| |")) {
+			if (ex.type != "int")                     throw error("expected int inside or", ex.type);
+			p_expr_and(ex);
+			if (ex.type != "int")                     throw error("expected int inside or", ex.type);
+			ex.instr.push_back({ "or" });
+		}
+	}
+
+	void p_expr_and(Prog::Expr& ex) {
+		p_expr_compare(ex);
+		if (expect("& &")) {
+			if (ex.type != "int")                     throw error("expected int inside and", ex.type);
+			p_expr_compare(ex);
+			if (ex.type != "int")                     throw error("expected int inside and", ex.type);
+			ex.instr.push_back({ "and" });
+		}
+	}
+
 	void p_expr_compare(Prog::Expr& ex) {
 		p_expr_add(ex);
 		auto type = ex.type;  // cache expression type
@@ -564,10 +584,10 @@ struct Parser : InputFile {
 		p_expr_atom(ex);
 		auto type = ex.type;  // cache expression type
 		while (expect("*") || expect("/")) {
-			if (type != "int")                        throw error("multiply expected int", type);
+			if (type != "int")                        throw error("expected int inside multiply", type);
 			string op = lasttok;
 			p_expr_atom(ex);
-			if      (ex.type != "int")                throw error("multiply expected int", type);
+			if      (ex.type != "int")                throw error("expected int inside multiply", type);
 			else if (op == "*")                       ex.instr.push_back({ "mul" });
 			else if (op == "/")                       ex.instr.push_back({ "div" });
 		}
@@ -594,7 +614,7 @@ struct Parser : InputFile {
 			else    ex.instr.push_back({ "varpath_ptr", vpp });
 		}
 		else if (expect("("))
-			p_expr_compare(ex),
+			p_expr_or(ex),
 			require(")");
 		else
 			throw error("expected atom");
