@@ -391,6 +391,8 @@ struct Runtime {
 			else if (in.cmd == "varpath")      ipush( varpath(in.iarg) );
 			else if (in.cmd == "add")          t = ipop(),  ipeek() += t;
 			else if (in.cmd == "sub")          t = ipop(),  ipeek() -= t;
+			else if (in.cmd == "mul")          t = ipop(),  ipeek() *= t;
+			else if (in.cmd == "div")          t = ipop(),  ipeek() /= t;
 			else if (in.cmd == "eq")           t = ipop(),  u = ipop(),  ipush(u == t);
 			else if (in.cmd == "neq")          t = ipop(),  u = ipop(),  ipush(u != t);
 			// strings

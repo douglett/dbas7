@@ -545,18 +545,31 @@ struct Parser : InputFile {
 	}
 
 	void p_expr_add(Prog::Expr& ex) {
-		p_expr_atom(ex);
+		p_expr_mul(ex);
 		auto type = ex.type;  // cache expression type
 		while (expect("+") || expect("-")) {
 			if (type != "int" && type != "string")    throw error("cannot add type", type);
 			string op = lasttok;
-			p_expr_atom(ex);
+			p_expr_mul(ex);
 			if      (type != ex.type)                 throw error("add type mismatch");
 			else if (type == "int"    && op == "+")   ex.instr.push_back({ "add" });
 			else if (type == "int"    && op == "-")   ex.instr.push_back({ "sub" });
 			else if (type == "string" && op == "+")   ex.instr.push_back({ "strcat" });
 			else if (type == "string" && op == "-")   throw error("cannot subtract strings");
 			else    throw error("unexpected add expression");
+		}
+	}
+
+	void p_expr_mul(Prog::Expr& ex) {
+		p_expr_atom(ex);
+		auto type = ex.type;  // cache expression type
+		while (expect("*") || expect("/")) {
+			if (type != "int")                        throw error("multiply expected int", type);
+			string op = lasttok;
+			p_expr_atom(ex);
+			if      (ex.type != "int")                throw error("multiply expected int", type);
+			else if (op == "*")                       ex.instr.push_back({ "mul" });
+			else if (op == "/")                       ex.instr.push_back({ "div" });
 		}
 	}
 
