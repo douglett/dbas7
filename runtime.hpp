@@ -16,6 +16,7 @@ struct Runtime {
 	struct MemPtr  { int32_t ptr, off; string v; };
 	struct Var     { string type; int32_t v; };
 	typedef  map<string, Var>  StackFrame;
+	typedef  int32_t  pos_t;
 	// errors
 	// struct DBRunError : runtime_error {};
 	struct ctrl_exception : exception      { int32_t val = 0;  ctrl_exception(int32_t _val) : val(_val) {} };
@@ -41,8 +42,8 @@ struct Runtime {
 		try                         { return stoi(num); }
 		catch (invalid_argument& e) { return consts.at(num); }
 	}
-	int typeindex(const string& name) const {
-		for (int i = 0; i < prog.types.size(); i++)
+	pos_t typeindex(const string& name) const {
+		for (size_t i = 0; i < prog.types.size(); i++)
 			if (prog.types[i].name == name)  return i;
 		return -1;
 	}
@@ -50,8 +51,8 @@ struct Runtime {
 		if (typeindex(name) == -1)  throw runtime_error("missing type: " + name);
 		return prog.types[typeindex(name)];
 	}
-	int funcindex(const string& name) const {
-		for (int i = 0; i < prog.functions.size(); i++)
+	pos_t funcindex(const string& name) const {
+		for (size_t i = 0; i < prog.functions.size(); i++)
 			if (prog.functions[i].name == name)  return i;
 		return -1;
 	}
@@ -101,7 +102,7 @@ struct Runtime {
 		else    throw runtime_error("make: unknown type: " + type);
 	}
 	int32_t make_str(const string& val) {
-		int ptr = memalloc("string", 0);
+		int32_t ptr = memalloc("string", 0);
 		heap.at(ptr).mem.insert( heap.at(ptr).mem.end(), val.begin(), val.end() );
 		return ptr;
 	}
@@ -145,14 +146,14 @@ struct Runtime {
 			auto& t = gettype(spage.type);
 			assert(spage.mem.size() == t.members.size());
 			dpage.mem.resize(spage.mem.size(), 0);
-			for (int i = 0; i < t.members.size(); i++)
+			for (size_t i = 0; i < t.members.size(); i++)
 				if    (t.members[i].type == "int")  dpage.mem[i] = spage.mem[i];
 				else  dpage.mem[i] = clone(spage.mem[i]);
 		}
 		// arrays
 		else if (Tokens::is_arraytype(spage.type)) {
 			dpage.mem.resize(spage.mem.size(), 0);
-			for (int i = 0; i < spage.mem.size(); i++)
+			for (size_t i = 0; i < spage.mem.size(); i++)
 				dpage.mem[i] = clone(spage.mem[i]);
 		}
 		else    throw runtime_error("clone: unknown type: " + spage.type);
@@ -169,7 +170,7 @@ struct Runtime {
 		if (page.type == "int[]" || page.type == "string") ;
 		else if (typeindex(page.type) > -1) {
 			auto& t = gettype(page.type);
-			for (int i = 0; i < t.members.size(); i++)
+			for (size_t i = 0; i < t.members.size(); i++)
 				if (t.members[i].type != "int")
 					destroy(page.mem.at(i));
 		}
@@ -179,9 +180,9 @@ struct Runtime {
 		else  throw runtime_error("unmake: unknown type: " + page.type);
 		page.mem = {};
 	}
-	void unmake_default(int ptr) {
+	void unmake_default(int32_t ptr) {
 		unmake(ptr);
-		int p = make(heap.at(ptr).type);  // new default object
+		int32_t p = make(heap.at(ptr).type);  // new default object
 		heap.at(ptr).mem = heap.at(p).mem;  // copy default values
 		heap.erase(p);  // remove old object
 	}
@@ -200,7 +201,7 @@ struct Runtime {
 		for (auto& d : prog.globals)  init_dim(d);
 	}
 	void init_type(const Prog::Type& t) {
-		for (int i = 0; i < t.members.size(); i++)
+		for (size_t i = 0; i < t.members.size(); i++)
 			consts["USRTYPE_" + t.name + "_" + t.members[i].name] = i;
 	}
 	void init_dim(const Prog::Dim& d) {
@@ -212,7 +213,7 @@ struct Runtime {
 
 
 	// run block
-	void block(int bptr) {
+	void block(pos_t bptr) {
 		const Prog::Block& bl = prog.blocks.at(bptr);
 		for (auto& st : bl.statements)
 			// I/O
@@ -234,7 +235,7 @@ struct Runtime {
 
 
 	// run block statements
-	void r_print(int ptr) {
+	void r_print(pos_t ptr) {
 		const Prog::Print& pr = prog.prints.at(ptr);
 		for (auto& in : pr.instr)
 			if      (in.cmd == "literal")   printf("%s", prog.literals.at(in.iarg).c_str() );
@@ -243,14 +244,14 @@ struct Runtime {
 			else    throw runtime_error("unknown print: " + in.cmd);
 		printf("\n");
 	}
-	void r_input(int ptr) {
+	void r_input(pos_t ptr) {
 		const Prog::Input& in = prog.inputs.at(ptr);
 		printf("%s", in.prompt.c_str() );
 		string s;
 		getline(cin, s);
 		clonestr( s, varpath(in.varpath) );
 	}
-	void r_if(int ptr) {
+	void r_if(pos_t ptr) {
 		const auto& ip = prog.ifs.at(ptr);
 		for (auto& cond : ip.conds)
 			// run block on empty OR truthy condition
@@ -259,14 +260,14 @@ struct Runtime {
 				break;
 			}
 	}
-	void r_while(int ptr) {
+	void r_while(pos_t ptr) {
 		const auto& wh = prog.whiles.at(ptr);
 		while ( expr(wh.expr) )
 			try                        { block(wh.block); }
 			catch (ctrl_continue& con) { if (--con.val > 0) throw con;  continue; }
 			catch (ctrl_break&    brk) { if (--brk.val > 0) throw brk;  break; }
 	}
-	void r_for(int ptr) {
+	void r_for(pos_t ptr) {
 		const auto& fo = prog.fors.at(ptr);
 		varpath(fo.varpath) = expr(fo.start_expr);
 		while (true) {
@@ -278,7 +279,7 @@ struct Runtime {
 			varpath(fo.varpath) += fo.step;  // step
 		}
 	}
-	void let(int ptr) {
+	void let(pos_t ptr) {
 		const auto& l = prog.lets.at(ptr);
 		int32_t  ex = expr(l.expr);
 		int32_t& vp = varpath(l.varpath);
@@ -289,7 +290,7 @@ struct Runtime {
 
 
 	// function calls
-	int32_t call(int ptr) { return call(prog.calls.at(ptr)); }
+	int32_t call(pos_t ptr) { return call(prog.calls.at(ptr)); }
 	int32_t call(const Prog::Call& ca) {
 		// if not user function, run internal function
 		if (funcindex(ca.fname) == -1)
@@ -298,7 +299,7 @@ struct Runtime {
 		auto& fn = getfunc(ca.fname);                                   // get user function def
 		StackFrame newframe;                                            // new stack frame
 		assert( fn.args.size() == ca.args.size() );                     // basic arguments error
-		for (int i = 0; i < fn.args.size(); i++) {
+		for (pos_t i = 0; i < fn.args.size(); i++) {
 			assert( fn.args[i].type == ca.args[i].type );               // basic argument error
 			int32_t ex = expr(ca.args[i].expr);                         // run argument expression
 			if (fn.args[i].type == "string")  ex = make_str(spop());    // new string by value
@@ -357,7 +358,7 @@ struct Runtime {
 
 
 	// variable path parsing
-	int32_t& varpath(int vptr) {
+	int32_t& varpath(pos_t vptr) {
 		const Prog::VarPath& vp = prog.varpaths.at(vptr);
 		int32_t* ptr = NULL;
 		for (auto& in : vp.instr) {
@@ -372,14 +373,14 @@ struct Runtime {
 		return *ptr;
 		err:  throw out_of_range("memget ptr is null");
 	}
-	string varpath_str(int vptr) {
+	string varpath_str(pos_t vptr) {
 		const auto& mem = heap.at( varpath(vptr) ).mem;
 		return string(mem.begin(), mem.end());
 	}
 
 
 	// expression parsing
-	int32_t expr(int eptr) {
+	int32_t expr(pos_t eptr) {
 		const Prog::Expr& ex = prog.exprs.at(eptr);
 		// istack = {}, sstack = {};
 		int32_t t = 0, u = 0;
@@ -403,14 +404,14 @@ struct Runtime {
 		// sanity check
 		if (istack.size() + sstack.size() != 1) {
 			printf("WARNING: odd expression results  i %d  s %d\n", (int)istack.size(), (int)sstack.size());
-			// for (int i = 0; i < istack.size(); i++)
+			// for (pos_t i = 0; i < istack.size(); i++)
 			// 	printf("  %02d  %d\n", i, istack[i] );
-			// for (int i = 0; i < sstack.size(); i++)
+			// for (pos_t i = 0; i < sstack.size(); i++)
 			// 	printf("  %02d  %s\n", i, sstack[i].c_str() );
 		}
 		return istack.size() ? ipop() : 0;
 	}
-	// string expr_str(int ex) {
+	// string expr_str(pos_t ex) {
 	// 	expr(ex);
 	// 	return spop();
 	// }
@@ -421,7 +422,7 @@ struct Runtime {
 	string&  speek() { return sstack.at(sstack.size() - 1); }
 	string   spop () { auto t = sstack.at(sstack.size() - 1);  sstack.pop_back();  return t; }
 	void     spush(const string& t) { sstack.push_back(t); }
-	void     spush(int loc) { sstack.push_back( prog.literals.at(loc) ); }
+	void     spush(pos_t loc) { sstack.push_back( prog.literals.at(loc) ); }
 
 
 
