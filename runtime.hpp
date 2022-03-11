@@ -384,7 +384,7 @@ struct Runtime {
 		const Prog::Expr& ex = prog.exprs.at(eptr);
 		// istack = {}, sstack = {};
 		int32_t t = 0, u = 0;
-		string s;
+		string s, q;
 		for (auto& in : ex.instr)
 			// integers
 			if      (in.cmd == "i")            ipush(in.iarg);
@@ -401,6 +401,8 @@ struct Runtime {
 			else if (in.cmd == "lit")          spush(in.iarg);
 			else if (in.cmd == "varpath_str")  spush(varpath_str(in.iarg));
 			else if (in.cmd == "strcat")       s = spop(),  speek() += s;
+			else if (in.cmd == "eq_str")       s = spop(),  q = spop(),  ipush(q == s);
+			else if (in.cmd == "neq_str")      s = spop(),  q = spop(),  ipush(q != s);
 			// other
 			else if (in.cmd == "varpath_ptr")  ipush(varpath(in.iarg));
 			else if (in.cmd == "call")         ipush(call(in.iarg));

@@ -530,9 +530,9 @@ struct Parser : InputFile {
 	void p_expr_or(Prog::Expr& ex) {
 		p_expr_and(ex);
 		if (expect("| |")) {
-			if (ex.type != "int")                     throw error("expected int inside or", ex.type);
+			if (ex.type != "int")  throw error("expected int inside or", ex.type);
 			p_expr_and(ex);
-			if (ex.type != "int")                     throw error("expected int inside or", ex.type);
+			if (ex.type != "int")  throw error("expected int inside or", ex.type);
 			ex.instr.push_back({ "or" });
 		}
 	}
@@ -540,56 +540,58 @@ struct Parser : InputFile {
 	void p_expr_and(Prog::Expr& ex) {
 		p_expr_compare(ex);
 		if (expect("& &")) {
-			if (ex.type != "int")                     throw error("expected int inside and", ex.type);
+			if (ex.type != "int")  throw error("expected int inside and", ex.type);
 			p_expr_compare(ex);
-			if (ex.type != "int")                     throw error("expected int inside and", ex.type);
+			if (ex.type != "int")  throw error("expected int inside and", ex.type);
 			ex.instr.push_back({ "and" });
 		}
 	}
 
 	void p_expr_compare(Prog::Expr& ex) {
 		p_expr_add(ex);
-		auto type = ex.type;  // cache expression type
 		if (expect("`= `=") || expect("`! `=")) {
+			auto type = ex.type;  // cache expression type
 			if (type != "int" && type != "string")    throw error("cannot compare type", type);
 			string opcode, op = Strings::join(lastrule, "");
 			// figure out the proper opcode using type + operator
-			if      (type == "int" && op == "==")  opcode = "eq";
-			else if (type == "int" && op == "!=")  opcode = "neq";
+			if      (type == "int"    && op == "==")      opcode = "eq";
+			else if (type == "int"    && op == "!=")      opcode = "neq";
+			else if (type == "string" && op == "==")      opcode = "eq_str";
+			else if (type == "string" && op == "!=")      opcode = "neq_str";
 			else  throw error("cannot do comparison on type", type + " : " + op);
 			// printf("opcode: %s  %s\n", op.c_str(), opcode.c_str() );
 			p_expr_add(ex);
 			if (type != ex.type)                      throw error("compare type mismatch");
 			ex.instr.push_back({ opcode });
+			ex.type = "int";
 		}
 	}
 
 	void p_expr_add(Prog::Expr& ex) {
 		p_expr_mul(ex);
-		auto type = ex.type;  // cache expression type
 		while (expect("+") || expect("-")) {
-			if (type != "int" && type != "string")    throw error("cannot add type", type);
+			auto type = ex.type;  // cache expression type
+			if (type != "int" && type != "string")     throw error("cannot add type", type);
 			string op = lasttok;
 			p_expr_mul(ex);
-			if      (type != ex.type)                 throw error("add type mismatch");
-			else if (type == "int"    && op == "+")   ex.instr.push_back({ "add" });
-			else if (type == "int"    && op == "-")   ex.instr.push_back({ "sub" });
-			else if (type == "string" && op == "+")   ex.instr.push_back({ "strcat" });
-			else if (type == "string" && op == "-")   throw error("cannot subtract strings");
+			if      (type != ex.type)                  throw error("add type mismatch");
+			else if (type == "int"    && op == "+")    ex.instr.push_back({ "add" });
+			else if (type == "int"    && op == "-")    ex.instr.push_back({ "sub" });
+			else if (type == "string" && op == "+")    ex.instr.push_back({ "strcat" });
+			else if (type == "string" && op == "-")    throw error("cannot subtract strings");
 			else    throw error("unexpected add expression");
 		}
 	}
 
 	void p_expr_mul(Prog::Expr& ex) {
 		p_expr_atom(ex);
-		auto type = ex.type;  // cache expression type
 		while (expect("*") || expect("/")) {
-			if (type != "int")                        throw error("expected int inside multiply", type);
+			if (ex.type != "int")         throw error("expected int inside multiply", ex.type);
 			string op = lasttok;
 			p_expr_atom(ex);
-			if      (ex.type != "int")                throw error("expected int inside multiply", type);
-			else if (op == "*")                       ex.instr.push_back({ "mul" });
-			else if (op == "/")                       ex.instr.push_back({ "div" });
+			if      (ex.type != "int")    throw error("expected int inside multiply", ex.type);
+			else if (op == "*")           ex.instr.push_back({ "mul" });
+			else if (op == "/")           ex.instr.push_back({ "div" });
 		}
 	}
 
