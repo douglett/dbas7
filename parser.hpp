@@ -549,19 +549,23 @@ struct Parser : InputFile {
 
 	void p_expr_compare(Prog::Expr& ex) {
 		p_expr_add(ex);
-		if (expect("`= `=") || expect("`! `=")) {
+		if (expect("`= `=") || expect("`! `=") || expect("`< `=") || expect("`> `=") || expect("`<") || expect("`>")) {
 			auto type = ex.type;  // cache expression type
-			if (type != "int" && type != "string")    throw error("cannot compare type", type);
+			if (type != "int" && type != "string")        throw error("cannot compare type", type);
 			string opcode, op = Strings::join(lastrule, "");
-			// figure out the proper opcode using type + operator
-			if      (type == "int"    && op == "==")      opcode = "eq";
-			else if (type == "int"    && op == "!=")      opcode = "neq";
+			p_expr_add(ex);
+			// identify proper opcode
+			if      (type != ex.type)                     throw error("compare type mismatch");
 			else if (type == "string" && op == "==")      opcode = "eq_str";
 			else if (type == "string" && op == "!=")      opcode = "neq_str";
-			else  throw error("cannot do comparison on type", type + " : " + op);
-			// printf("opcode: %s  %s\n", op.c_str(), opcode.c_str() );
-			p_expr_add(ex);
-			if (type != ex.type)                      throw error("compare type mismatch");
+			else if (type == "string")                    throw error("cannot do comparison on string", op);
+			else if (op == "==")                          opcode = "eq";
+			else if (op == "!=")                          opcode = "neq";
+			else if (op == "<")                           opcode = "lt";
+			else if (op == ">")                           opcode = "gt";
+			else if (op == "<=")                          opcode = "lte";
+			else if (op == ">=")                          opcode = "gte";
+			// emit command
 			ex.instr.push_back({ opcode });
 			ex.type = "int";
 		}
@@ -574,12 +578,12 @@ struct Parser : InputFile {
 			if (type != "int" && type != "string")     throw error("cannot add type", type);
 			string op = lasttok;
 			p_expr_mul(ex);
+			// identify proper opcode
 			if      (type != ex.type)                  throw error("add type mismatch");
 			else if (type == "int"    && op == "+")    ex.instr.push_back({ "add" });
 			else if (type == "int"    && op == "-")    ex.instr.push_back({ "sub" });
 			else if (type == "string" && op == "+")    ex.instr.push_back({ "strcat" });
 			else if (type == "string" && op == "-")    throw error("cannot subtract strings");
-			else    throw error("unexpected add expression");
 		}
 	}
 

@@ -397,6 +397,10 @@ struct Runtime {
 			else if (in.cmd == "or")           t = ipop(),  ipeek()  = ipeek() || t;
 			else if (in.cmd == "eq")           t = ipop(),  u = ipop(),  ipush(u == t);
 			else if (in.cmd == "neq")          t = ipop(),  u = ipop(),  ipush(u != t);
+			else if (in.cmd == "lt")           t = ipop(),  u = ipop(),  ipush(u <  t);
+			else if (in.cmd == "gt")           t = ipop(),  u = ipop(),  ipush(u >  t);
+			else if (in.cmd == "lte")          t = ipop(),  u = ipop(),  ipush(u <= t);
+			else if (in.cmd == "gte")          t = ipop(),  u = ipop(),  ipush(u >= t);
 			// strings
 			else if (in.cmd == "lit")          spush(in.iarg);
 			else if (in.cmd == "varpath_str")  spush(varpath_str(in.iarg));
