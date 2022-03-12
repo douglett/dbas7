@@ -107,9 +107,18 @@ struct Parser : InputFile {
 
 	Prog::Dim p_dim_start() {
 		string type, btype, name;
-		if      (expect ("dim @identifier @identifier"))      type = btype = lastrule.at(0),  name = lastrule.at(1);
-		else if (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype + "[]",  name = lastrule.at(1);
-		else if (require("dim @identifier"))                  type = btype = "int",  name = lastrule.at(0);
+		if      (expect ("dim @identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype+"[]",  name = lastrule.at(1);
+		else if (expect ("dim @identifier @identifier"))      btype = lastrule.at(0),  type = btype,       name = lastrule.at(1);
+		else if (require("dim @identifier"))                  btype = "int",           type = "int",       name = lastrule.at(0);
+		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
+			throw error("dim collision", type + ":" + name);
+		return { name, type, .expr=-1, .dsym=lineno() };
+	}
+
+	Prog::Dim p_dim_argument() {
+		string type, btype, name;
+		if      (expect ("@identifier [ ] @identifier"))  btype = lastrule.at(0),  type = btype+"[]",  name = lastrule.at(1);
+		else if (require("@identifier @identifier"))      btype = lastrule.at(0),  type = btype,       name = lastrule.at(1);
 		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
 		return { name, type, .expr=-1, .dsym=lineno() };
@@ -158,9 +167,8 @@ struct Parser : InputFile {
 		auto& fn  = prog.functions.back();
 		fn.dsym   = lineno();
 		// function arguments
-		while (!eol()) {
-			if (!expect("@identifier @identifier"))  break;  // expect short dim format
-			fn.args.push_back({ lastrule.at(1), lastrule.at(0) });  // save argument
+		while (!eol() && !peek(")")) {
+			fn.args.push_back( p_dim_argument() );
 			if (!expect(","))  break;  // comma seperated arguments
 		}
 		// function header end
@@ -208,14 +216,6 @@ struct Parser : InputFile {
 			else    throw error("unexpected block statement", currenttoken());
 		return blp;
 	}
-	// block helpers
-	// void add_stmt(int ptr, const Prog::Statement& st) { prog.blocks.at(ptr).statements.push_back(st); }
-	// Prog::Block& bptr(int ptr) { return prog.blocks.at(ptr); }
-	// void p_block0() {
-	// 	require("block @endl");
-	// 	p_block();
-	// 	require("end block @endl"), nextline();
-	// }
 
 
 
@@ -280,9 +280,6 @@ struct Parser : InputFile {
 		require("end if @endl"), nextline();
 		return iip;
 	}
-	// if helpers
-	// void             add_cond (int ptr) { prog.ifs.at(ptr).conds.push_back({ -1, -1 }); }
-	// Prog::Condition& last_cond(int ptr) { auto& c = prog.ifs.at(ptr).conds;  return c.at(c.size() - 1); }
 
 	int p_while() {
 		require("while");

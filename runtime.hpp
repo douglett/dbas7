@@ -136,7 +136,7 @@ struct Runtime {
 		// TODO: is this memory safe?
 		auto& spage = heap.at(sptr);
 		auto& dpage = heap.at(dptr);
-		assert(dpage.mem.size() > 0);  // TODO: why?
+		// assert(dpage.mem.size() > 0);  // TODO: why?
 		assert(spage.type == dpage.type);
 		// linear memory
 		if (spage.type == "string" || spage.type == "int[]")
