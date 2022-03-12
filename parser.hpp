@@ -386,9 +386,9 @@ struct Parser : InputFile {
 			if (expect("[")) {
 				inst.push_back({ "memget_expr", p_expr("int") });
 				require("]");
-				if (!Tokens::is_arraytype(type))
-					throw error("expected array type", type);
-				type = Tokens::basetype(type);
+				if      (Tokens::is_arraytype(type))  type = Tokens::basetype(type);
+				else if (type == "string")            type = "int";
+				else                                  throw error("expected array / string in array-subscript", type);
 			}
 			else if (expect(".")) {
 				require("@identifier"),  prop = lastrule.at(0);
