@@ -382,7 +382,7 @@ struct Runtime {
 	// expression parsing
 	int32_t expr(pos_t eptr) {
 		const Prog::Expr& ex = prog.exprs.at(eptr);
-		// istack = {}, sstack = {};
+		pos_t istack_start = istack.size(), sstack_start = sstack.size();  // remember stack pos, for sanity
 		int32_t t = 0, u = 0;
 		string s, q;
 		for (auto& in : ex.instr)
@@ -412,13 +412,15 @@ struct Runtime {
 			else if (in.cmd == "call")         ipush(call(in.iarg));
 			else    throw runtime_error("unknown expr: " + in.cmd);
 		// sanity check
-		if (istack.size() + sstack.size() != 1) {
-			printf("WARNING: odd expression results  i %d  s %d\n", (int)istack.size(), (int)sstack.size() );
+		pos_t istack_end = istack.size() - istack_start, sstack_end = sstack.size() - sstack_start;
+		if (istack_end + sstack_end != 1) {
+			printf("WARNING: odd expression results  i %d  s %d\n", istack_end, sstack_end );
 			for (pos_t i = 0; i < istack.size(); i++)
 				printf("  %02di  %d\n", i, istack[i] );
 			for (pos_t i = 0; i < sstack.size(); i++)
 				printf("  %02ds  %s\n", i, sstack[i].c_str() );
 		}
+		// result
 		return istack.size() ? ipop() : 0;
 	}
 	// string expr_str(pos_t ex) {

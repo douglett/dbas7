@@ -8,8 +8,8 @@ using namespace std;
 void scratch() {
 	// parse
 	Parser p;
-	p.load("scripts/scratch.bas");
-	// p.load("scripts/advent2.bas");
+	// p.load("scripts/scratch.bas");
+	p.load("scripts/advent2.bas");
 	printf("-----\n");
 	p.parse();
 	Progshow(p.prog).tofile("bin/prog.tree");

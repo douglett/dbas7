@@ -53,6 +53,7 @@ function mainloop()
 		input inp
 		# let l = split(inp, cmd)
 		# print "commands:", l
+		break
 		if l == 0
 			continue
 		end if
