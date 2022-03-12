@@ -330,8 +330,8 @@ struct Runtime {
 	int32_t call_system(const Prog::Call& ca) {
 		// push array
 		if (ca.fname == "push") {
-			int32_t t = 0,  arrptr = expr(ca.args.at(0).expr),  val = expr(ca.args.at(1).expr);
-			auto&   av     = ca.args.at(1);
+			int32_t t  = 0,  arrptr = expr(ca.args.at(0).expr),  val = expr(ca.args.at(1).expr);
+			auto&   av = ca.args.at(1);
 			if      (av.type == "int")     heap.at(arrptr).mem.push_back(val);
 			else if (av.type == "string")  t = make_str(spop()),  heap.at(arrptr).mem.push_back(t);
 			else    t = clone(val),  heap.at(arrptr).mem.push_back(t);

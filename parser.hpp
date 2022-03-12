@@ -485,21 +485,22 @@ struct Parser : InputFile {
 	int p_callcheck_system(const Prog::Call& ca) const {
 		using Tokens::is_arraytype;
 		using Tokens::basetype;
+		// TODO: push and pop could take (string, int) if strings could be passed as references
 		if (ca.fname == "push") {
 			if (ca.args.size() == 2 && is_arraytype(ca.args[0].type) && basetype(ca.args[0].type) == ca.args[1].type)  return 1;
-			throw error("incorrect arguments");
+			throw error("incorrect arguments in push", "line " + to_string(ca.dsym) );
 		}
 		else if (ca.fname == "pop") {
 			if (ca.args.size() == 1 && is_arraytype(ca.args[0].type))  return 1;
-			throw error("incorrect argument");
+			throw error("incorrect arguments in pop", "line " + to_string(ca.dsym) );
 		}
 		else if (ca.fname == "len") {
 			if (ca.args.size() == 1 && (is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
-			throw error("incorrect argument");
+			throw error("incorrect arguments in len", "line " + to_string(ca.dsym) );
 		}
 		else if (ca.fname == "default") {
 			if (ca.args.size() == 1 && ca.args[0].type != "int")  return 1;
-			throw error("incorrect argument");
+			throw error("incorrect arguments in default", "line " + to_string(ca.dsym) );
 		}
 		return 0;
 	}

@@ -1,7 +1,7 @@
 function main()
-	dim string s = "ass" + "butt"
-	dim i = 1 + 1 * 2
-	# s = "fart"
-	print s, i
-	print s[1]
+	dim string s = "ass"
+	# push(s, 97)
+	print s, s[1]
+	s[1] = 98
+	print s
 end function

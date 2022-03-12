@@ -25,6 +25,6 @@ void runscript(const string& fname) {
 int main() {
 	printf("hello world\n");
 
-	runscript("scratch");
-	// runscript("advent2");
+	// runscript("scratch");
+	runscript("advent2");
 }
