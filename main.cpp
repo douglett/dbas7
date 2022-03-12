@@ -5,11 +5,10 @@
 using namespace std;
 
 
-void scratch() {
+void runscript(const string& fname) {
 	// parse
 	Parser p;
-	// p.load("scripts/scratch.bas");
-	p.load("scripts/advent2.bas");
+	p.load("scripts/" + fname + ".bas");
 	printf("-----\n");
 	p.parse();
 	Progshow(p.prog).tofile("bin/prog.tree");
@@ -26,5 +25,6 @@ void scratch() {
 int main() {
 	printf("hello world\n");
 
-	scratch();
+	runscript("scratch");
+	// runscript("advent2");
 }

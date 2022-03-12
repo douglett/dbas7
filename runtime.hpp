@@ -207,8 +207,13 @@ struct Runtime {
 	void init_dim(const Prog::Dim& d) {
 		auto& cframe = fstack.size() ? fstack.back() : globals;
 		cframe[d.name] = { d.type, 0 };
-		if   (d.expr > -1)  cframe[d.name].v = clone2( d.type, expr(d.expr) );
-		else                cframe[d.name].v = make(d.type);
+		if (d.expr > -1 && d.type == "string")
+			expr(d.expr),
+			cframe[d.name].v = make_str( spop() );
+		else if (d.expr > -1)
+			cframe[d.name].v = clone2( d.type, expr(d.expr) );
+		else
+			cframe[d.name].v = make(d.type);
 	}
 
 

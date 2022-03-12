@@ -87,6 +87,8 @@ struct Progshow {
 
 	void show_dim(const Prog::Dim& d, int id) {
 		output(d.type + "  " + d.name, id);
+		if (d.expr > -1)
+			show_expr_head(d.expr, id+1);
 	}
 
 	void show_type(const Prog::Type& t, int id) {

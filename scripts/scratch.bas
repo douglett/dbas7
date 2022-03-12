@@ -1,8 +1,6 @@
 function main()
-	dim string[] arr
-	push(arr, "fart")
-	push(arr, "butt")
-	print arr[0], arr[1]
-	arr[0] = "lols"
-	print arr[0], arr[1]
+	dim string s = "ass" + "butt"
+	dim i = 1 + 1 * 2
+	# s = "fart"
+	print s, i
 end function
