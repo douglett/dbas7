@@ -1,16 +1,8 @@
-dim i = 1, k = 2+3+4
-
 function main()
-	if 1 < 2
-		print "less than ok"
-	end if
-	if 2 > 1
-		print "greater than ok"
-	end if
-	if 1 <= 2
-		print "less-than-equals ok"
-	end if
-	if 2 >= 1
-		print "greater-than-equals ok"
-	end if
+	dim string[] arr
+	push(arr, "fart")
+	push(arr, "butt")
+	print arr[0], arr[1]
+	arr[0] = "lols"
+	print arr[0], arr[1]
 end function

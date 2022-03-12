@@ -281,8 +281,8 @@ struct Runtime {
 	}
 	void let(pos_t ptr) {
 		const auto& l = prog.lets.at(ptr);
+		int32_t& vp = varpath(l.varpath);  // TODO: execution order could cause bugs with arrays potentially
 		int32_t  ex = expr(l.expr);
-		int32_t& vp = varpath(l.varpath);
 		if      (l.type == "int")     vp = ex;
 		else if (l.type == "string")  clonestr(spop(), vp);
 		else if (vp != ex)            cloneto(ex, vp);
@@ -413,11 +413,11 @@ struct Runtime {
 			else    throw runtime_error("unknown expr: " + in.cmd);
 		// sanity check
 		if (istack.size() + sstack.size() != 1) {
-			printf("WARNING: odd expression results  i %d  s %d\n", (int)istack.size(), (int)sstack.size());
-			// for (pos_t i = 0; i < istack.size(); i++)
-			// 	printf("  %02d  %d\n", i, istack[i] );
-			// for (pos_t i = 0; i < sstack.size(); i++)
-			// 	printf("  %02d  %s\n", i, sstack[i].c_str() );
+			printf("WARNING: odd expression results  i %d  s %d\n", (int)istack.size(), (int)sstack.size() );
+			for (pos_t i = 0; i < istack.size(); i++)
+				printf("  %02di  %d\n", i, istack[i] );
+			for (pos_t i = 0; i < sstack.size(); i++)
+				printf("  %02ds  %s\n", i, sstack[i].c_str() );
 		}
 		return istack.size() ? ipop() : 0;
 	}

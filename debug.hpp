@@ -39,7 +39,8 @@ struct Progshow {
 	ostream& outp() { return fs.is_open() ? fs : cout; }
 	const char* ind(int id) {
 		static string s;
-		return s = string(id*3, ' '),  s.c_str();
+		// return s = string(id*3, ' '),  s.c_str();
+		return s = string(id, '\t'),  s.c_str();
 	}
 	string numfmt(int num, int w) {
 		string s = to_string(num);
@@ -198,11 +199,11 @@ struct Progshow {
 			if      (in.cmd == "i")
 				output("i " + to_string(in.iarg), id);
 			else if (in.cmd == "lit")
-				show_literal_head(in.iarg, id+2);
+				show_literal_head(in.iarg, id);
 			else if (in.cmd == "varpath" || in.cmd == "varpath_str")
-				output(in.cmd, id),  show_varpath(in.iarg, id+1);
+				output(in.cmd, id),  show_varpath(in.iarg, id);
 			else if (in.cmd == "varpath_ptr")
-				show_varpath_head(in.iarg, id+1);
+				show_varpath_head(in.iarg, id);
 			else if (in.cmd == "call")
 				show_call(in.iarg, id);
 			else if (in.cmd == "add" || in.cmd == "sub" || in.cmd == "eq" || in.cmd == "neq" || in.cmd == "strcat")
