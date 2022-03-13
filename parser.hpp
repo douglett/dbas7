@@ -458,8 +458,9 @@ struct Parser : InputFile {
 	}
 
 	int p_callcheck(const Prog::Call& ca) const {
-		// check system call arguments (if system)
-		if (p_callcheck_system(ca))  return 1;
+		// check magic-function call sig
+		if (p_callcheck_magic(ca))
+			return 1;
 		// check user function exists
 		if (getfuncindex(ca.fname) == -1)
 			throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
@@ -482,7 +483,8 @@ struct Parser : InputFile {
 		return -1;
 	}
 
-	int p_callcheck_system(const Prog::Call& ca) const {
+	int p_callcheck_magic(const Prog::Call& ca) const {
+		// magic-functions are system commands, but in function format. exists outside stdlib
 		using Tokens::is_arraytype;
 		using Tokens::basetype;
 		// TODO: push and pop could take (string, int) if strings could be passed as references
