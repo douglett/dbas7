@@ -43,6 +43,39 @@ public:
 // };
 
 
+// enum class Cmd {
+// 	// integers
+// 	i = 1,
+// 	varpath,
+// 	add,
+// 	sub,
+// 	mul,
+// 	div,
+// 	and_,
+// 	or_,
+// 	eq,
+// 	neq,
+// 	lt,
+// 	gt,
+// 	lte,
+// 	gte,
+// 	// strings
+// 	lit = 20,
+// 	varpath_str,
+// 	strcat,
+// 	eq_str,
+// 	neq_str,
+// 	// memory
+// 	get = 30,
+// 	get_global,
+// 	memget_expr,
+// 	memget_prop,
+// 	// other
+// 	varpath_ptr = 40,
+// 	call,
+// };
+
+
 struct Prog {
 	struct Dim          { string name, type; int expr; int dsym; };
 	struct Type         { string name; vector<Dim> members; };
@@ -62,7 +95,7 @@ struct Prog {
 	struct Argument     { string type; int expr; };
 	struct Call         { string fname; vector<Argument> args; int dsym; };
 
-	string                    module;
+	string                   module;
 	dlist<Prog::Type>        types;
 	dlist<Prog::Dim>         globals;
 	dlist<Prog::Function>    functions;

@@ -6,6 +6,7 @@
 #include <map>
 #include <stdexcept>
 #include <cassert>
+#include "dbas7.hpp"
 using namespace std;
 
 
