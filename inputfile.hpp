@@ -12,7 +12,7 @@
 struct InputFile {
 	struct parse_error : runtime_error { using runtime_error::runtime_error; };
 
-	// typedef  InputPattern::Results  Results;
+	string fname;
 	vector<string> lines, tokens;
 	string lasttok;
 	vector<string> lastrule;
@@ -45,6 +45,7 @@ struct InputFile {
 		fstream fs(fname, ios::in);
 		if (!fs.is_open())
 			return fprintf(stderr, "error loading file %s\n", fname.c_str()), 1;
+		this->fname = fname;
 		string s;
 		while (getline(fs, s))
 			lines.push_back(s);

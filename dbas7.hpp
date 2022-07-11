@@ -77,9 +77,10 @@ public:
 
 
 struct Prog {
-	struct Dim          { string name, type; int expr; int dsym; };
+	struct Dsym         { int lno, fno; };
+	struct Dim          { string name, type; int expr; Dsym dsym; };
 	struct Type         { string name; vector<Dim> members; };
-	struct Function     { string name; int block; vector<Dim> args, locals; int dsym; };
+	struct Function     { string name; int block; vector<Dim> args, locals; Dsym dsym; };
 	struct Statement    { string type; int loc; };
 	struct Block        { vector<Statement> statements; };
 	struct Instruction  { string cmd; int32_t iarg; string sarg; };
@@ -93,9 +94,10 @@ struct Prog {
 	struct VarPath      { string type; vector<Instruction> instr; };
 	struct Expr         { string type; vector<Instruction> instr; };
 	struct Argument     { string type; int expr; };
-	struct Call         { string fname; vector<Argument> args; int dsym; };
+	struct Call         { string fname; vector<Argument> args; Dsym dsym; };
 
 	string                   module;
+	vector<string>           files;
 	dlist<Prog::Type>        types;
 	dlist<Prog::Dim>         globals;
 	dlist<Prog::Function>    functions;

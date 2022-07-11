@@ -61,12 +61,17 @@ struct Parser : InputFile {
 
 	void parse() {
 		prog.module = "default";
+		prog.files.push_back(fname);
 		p_section("module");
 		p_section("type");
 		p_section("dim");
 		p_section("function");
 		if (!eof())  throw error("unexpected command", currenttoken());
 		p_callcheck_all();
+	}
+
+	Prog::Dsym dsym() {
+		return { lineno(), (int)prog.files.size() };
 	}
 
 	void p_section(const string& section) {
@@ -112,7 +117,7 @@ struct Parser : InputFile {
 		else if (require("dim @identifier"))                  btype = "int",           type = "int",       name = lastrule.at(0);
 		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
-		return { name, type, .expr=-1, .dsym=lineno() };
+		return { name, type, .expr=-1, .dsym=dsym() };
 	}
 
 	Prog::Dim p_dim_argument() {
@@ -121,7 +126,7 @@ struct Parser : InputFile {
 		else if (require("@identifier @identifier"))      btype = lastrule.at(0),  type = btype,       name = lastrule.at(1);
 		if (Tokens::is_keyword(name) || is_type(name) || !is_type(btype))
 			throw error("dim collision", type + ":" + name);
-		return { name, type, .expr=-1, .dsym=lineno() };
+		return { name, type, .expr=-1, .dsym=dsym() };
 	}
 
 	void p_dim_global() {
@@ -165,7 +170,7 @@ struct Parser : InputFile {
 		prog.functions.push_back({ fname });
 		flag_func = prog.functions.size() - 1;
 		auto& fn  = prog.functions.back();
-		fn.dsym   = lineno();
+		fn.dsym   = dsym();
 		// function arguments
 		while (!eol() && !peek(")")) {
 			fn.args.push_back( p_dim_argument() );
@@ -440,7 +445,7 @@ struct Parser : InputFile {
 		prog.calls.push_back({ fname });
 		int   cap = prog.calls.size() - 1;
 		auto& ca  = prog.calls.back();
-		ca.dsym   = lineno();
+		ca.dsym   = dsym();
 		// arguments
 		while (!eol() && !peek(")")) {
 			int ex = p_expr_any();
@@ -457,23 +462,29 @@ struct Parser : InputFile {
 		return 1;
 	}
 
+	parse_error errordsym(const string& err, Prog::Dsym dsym) const {
+		return parse_error( 
+			err + " . "
+			+ prog.files.at(dsym.fno-1) + " :: line " + to_string(dsym.lno));
+	}
+
 	int p_callcheck(const Prog::Call& ca) const {
 		// check magic-function call sig
 		if (p_callcheck_magic(ca))
 			return 1;
 		// check user function exists
 		if (getfuncindex(ca.fname) == -1)
-			throw error("function undefined, line " + to_string(ca.dsym), ca.fname);
+			throw errordsym("function undefined: " + ca.fname, ca.dsym);
 		// check user call arguments
 		auto& fn = prog.functions.at(getfuncindex(ca.fname));
 		if (ca.args.size() != fn.args.size())
-			throw error("incorrect argument count, line " + to_string(ca.dsym));
+			throw errordsym("incorrect argument count", ca.dsym);
 		for (int i = 0; i < ca.args.size(); i++)
 			if (ca.args[i].type != fn.args[i].type)
-				throw error(string("incorrect argument type.")
+				throw errordsym(string("incorrect argument type.")
 					+ " expected " + fn.args[i].type + "(" + to_string(i+1) + ")"
-					+ ", got " + ca.args[i].type
-					+ ", line " + to_string(ca.dsym));
+					+ ", got " + ca.args[i].type,
+					ca.dsym);
 		// OK 
 		return 1;
 	}
@@ -490,19 +501,19 @@ struct Parser : InputFile {
 		// TODO: push and pop could take (string, int) if strings could be passed as references
 		if (ca.fname == "push") {
 			if (ca.args.size() == 2 && is_arraytype(ca.args[0].type) && basetype(ca.args[0].type) == ca.args[1].type)  return 1;
-			throw error("incorrect arguments in push", "line " + to_string(ca.dsym) );
+			throw errordsym("incorrect arguments in push", ca.dsym);
 		}
 		else if (ca.fname == "pop") {
 			if (ca.args.size() == 1 && is_arraytype(ca.args[0].type))  return 1;
-			throw error("incorrect arguments in pop", "line " + to_string(ca.dsym) );
+			throw errordsym("incorrect arguments in pop", ca.dsym);
 		}
 		else if (ca.fname == "len") {
 			if (ca.args.size() == 1 && (is_arraytype(ca.args[0].type) || ca.args[0].type == "string"))  return 1;
-			throw error("incorrect arguments in len", "line " + to_string(ca.dsym) );
+			throw errordsym("incorrect arguments in len", ca.dsym);
 		}
 		else if (ca.fname == "default") {
 			if (ca.args.size() == 1 && ca.args[0].type != "int")  return 1;
-			throw error("incorrect arguments in default", "line " + to_string(ca.dsym) );
+			throw errordsym("incorrect arguments in default", ca.dsym);
 		}
 		return 0;
 	}
